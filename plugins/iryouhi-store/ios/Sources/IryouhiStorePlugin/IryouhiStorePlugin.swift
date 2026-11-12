@@ -51,13 +51,14 @@ public class IryouhiStorePlugin: CAPPlugin, CAPBridgedPlugin {
         let id = call.getString("productId") ?? ""
         Task {
             do {
+                // 商品が App Store に未登録・取得できないときはエラーにせず「見つからない」を返す（画面は価格なしの文言で動く）
                 guard let p = try await Product.products(for: [id]).first else {
-                    call.reject("商品が見つかりません")
+                    call.resolve(["found": false])
                     return
                 }
-                call.resolve(["productId": p.id, "price": p.displayPrice, "name": p.displayName, "description": p.description])
+                call.resolve(["found": true, "productId": p.id, "price": p.displayPrice, "name": p.displayName, "description": p.description])
             } catch {
-                call.reject(error.localizedDescription)
+                call.resolve(["found": false, "error": error.localizedDescription])
             }
         }
     }
