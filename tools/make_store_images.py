@@ -15,7 +15,7 @@ CHROME = r"C:\Program Files\Google\Chrome\Application\chrome.exe"
 BOLD = r"C:\Windows\Fonts\meiryob.ttc"
 TOP, BOTTOM = (36, 140, 118), (12, 70, 60)
 SHOTS = [
-    ("1_home", "?seed=1&shot=1#home", ["家族の医療費が", "ひと目でわかる"], "今年の合計と、控除の目安"),
+    ("1_home", "?seed=1&shot=1#home", ["控除まであといくら", "いつでも見える"], "家族の医療費の合計と、戻る税金の目安"),
     ("2_scan", "?seed=1&shot=1&scan=1#add", ["レシートを撮るだけ", "日付と金額を読み取り"], "写真は送信しません。iPhoneの中で読み取ります"),
     ("3_list", "?seed=1&shot=1#list", ["家族別・病院別に", "1年ためる"], "タップで修正・削除。通院の交通費も"),
     ("4_more", "?seed=1&shot=1#more", ["国税庁の集計フォームに", "そのまま書き出し"], "作成コーナーで読み込めば打ち直し不要"),

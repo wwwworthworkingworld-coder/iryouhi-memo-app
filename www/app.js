@@ -1,5 +1,5 @@
 (async () => {
-  const { KINDS, KIND_NAME, TAX_RATES, groupLines, parseReceipt, summarize, deduction, refundEstimate, formRows, csv, backup, restore } = window.IryouhiCore;
+  const { KINDS, KIND_NAME, TAX_RATES, groupLines, parseReceipt, matchPerson, summarize, netTotal, deduction, compareDeductions, refundEstimate, formRows, csv, backup, restore } = window.IryouhiCore;
   const { writeForm, validate } = window.IryouhiXlsx;
   const KEY = "iryouhi-memo-v1";
   const PRODUCT_ID = "com.company256.iryouhi.form";
@@ -35,7 +35,7 @@
   }
 
   let data = await load();
-  let state = { person: data.people[0] || "", kind: "care", editing: null, mixed: false };
+  let state = { person: data.people[0] || "", kind: "care", editing: null, mixed: false, otc: false };
   let viewYear = +today().slice(0, 4);
   let viewMonth = today().slice(0, 7);
   let filterPerson = "";
@@ -78,22 +78,47 @@
   function renderHome() {
     const s = summarize(data.records, viewYear);
     const ys = years();
-    $("yearLabel").textContent = `${viewYear}年分（${s.count}件）` + (s.refund ? `　補填 −${yen(s.refund)}` : "");
-    $("yearTotal").textContent = yen(s.total);
+    const income = Number(data.settings.income) || 0;
+    $("yearLabel").textContent = `${viewYear}年分`;
     $("prevYear").disabled = viewYear <= Math.min(...ys) - 1;
     $("nextYear").disabled = viewYear >= +today().slice(0, 4);
     const empty = s.count === 0;
     $("emptyHome").hidden = !empty; $("homeBody").hidden = empty;
-    if (empty) return;
-    const income = Number(data.settings.income) || 0;
-    const d = deduction(s.total, s.refund, income);
+    if (empty) { $("emptyRemain").textContent = yen(deduction(0, 0, income).threshold); return; }
+    // 補填はその医療費からだけ引く（記録ごとに切ってから合計）
+    const net = netTotal(data.records, viewYear);
+    const d = deduction(net, 0, income);
     const e = refundEstimate(d.amount, data.settings.rate || 0.10);
+    // 最初に見える数字：超えるまでは「あといくら」、超えたら「控除の対象になる額」
+    if (d.amount) {
+      $("remainLabel").textContent = "医療費控除の対象になる額（目安）";
+      $("remainValue").textContent = yen(d.amount); $("remainValue").className = "remain-value over";
+      $("remainBar").style.width = "100%";
+      $("remainNote").textContent = `医療費 ${yen(s.total)}${s.refund ? ` − 補填 ${yen(s.refund)}` : ""} − ${yen(d.threshold)}。戻る税金の目安は約${yen(e.total)}（所得税率 ${Math.round((data.settings.rate || 0.10) * 100)}% のとき）。`;
+    } else {
+      $("remainLabel").textContent = "控除の対象まで あと";
+      $("remainValue").textContent = yen(d.remaining); $("remainValue").className = "remain-value";
+      $("remainBar").style.width = Math.min(100, Math.round(net / d.threshold * 100)) + "%";
+      $("remainNote").textContent = `医療費 ${yen(net)}${s.refund ? "（補填を引いた額）" : ""} が ${yen(d.threshold)} を超えた分が控除の対象になります。`;
+    }
+    $("yearTotal").textContent = yen(s.total);
+    $("yearCount").textContent = `${s.count}件`;
+    $("yearRefund").hidden = !s.refund; $("yearRefund").textContent = s.refund ? `保険金などで補填される金額 −${yen(s.refund)}（差し引き後 ${yen(net)}）` : "";
     $("dedAmount").textContent = yen(d.amount); $("dedAmount").className = d.amount ? "" : "zero";
     $("dedRefund").textContent = d.amount ? `約${yen(e.total)}` : "—"; $("dedRefund").className = d.amount ? "" : "zero";
     $("dedNote").textContent = d.amount
-      ? `医療費 ${yen(s.total)}${s.refund ? ` − 補填 ${yen(s.refund)}` : ""} − ${yen(d.threshold)} ＝ ${yen(d.amount)}。所得税 約${yen(e.incomeTax)}（復興特別所得税込み）＋ 住民税 約${yen(e.residentTax)}。`
-      : `医療費${s.refund ? "（補填を引いた額）" : ""}が ${yen(d.threshold)} を超えると控除の対象になります。あと ${yen(d.remaining)} です。`;
+      ? `所得税 約${yen(e.incomeTax)}（復興特別所得税込み）＋ 住民税 約${yen(e.residentTax)}。実際の額は所得や他の控除で変わります。`
+      : `控除の対象になる額が出ると、所得税率に応じた目安がここに出ます。`;
     chips($("rateChips"), TAX_RATES.map(([r, label]) => [r, `${Math.round(r * 100)}%`]), data.settings.rate, async r => { data.settings.rate = r; await save(); renderHome(); });
+    // セルフメディケーション税制との比較（印を付けた市販薬があるときだけ）
+    const c = compareDeductions(data.records, viewYear, income);
+    $("selfmedCard").hidden = !s.otcTotal;
+    if (s.otcTotal) {
+      $("smRegular").textContent = yen(c.regular.amount); $("smRegular").className = c.better === "regular" ? "" : "zero";
+      $("smAmount").textContent = yen(c.selfmed.amount); $("smAmount").className = c.better === "selfmed" ? "" : "zero";
+      $("smNote").textContent = `対象の市販薬 ${yen(c.selfmed.base)}` + (c.selfmed.amount ? ` − 12,000円 ＝ ${yen(c.selfmed.amount)}。` : `。あと ${yen(c.selfmed.remaining)} で 12,000円を超えます。`)
+        + (c.better === "none" ? "" : c.better === "selfmed" ? ` 今の記録ではセルフメディケーション税制のほうが ${yen(c.diff)} 大きい目安です。` : ` 今の記録では通常の医療費控除のほうが ${yen(c.diff)} 大きい目安です。`);
+    }
     const max = Math.max(1, ...s.byPerson.map(p => p.total));
     const rows = (ul, arr, label) => {
       ul.innerHTML = "";
@@ -110,7 +135,7 @@
   }
   $("prevYear").onclick = () => { viewYear--; renderHome(); };
   $("nextYear").onclick = () => { viewYear++; renderHome(); };
-  $("homeScan").onclick = () => { showTab("add"); readReceipt("scanReceipt"); };
+  $("homeScan").onclick = $("homeScan2").onclick = () => { showTab("add"); readReceipt("scanReceipt"); };
 
   // ---- 記録
   const KIND_NOTES = {
@@ -132,11 +157,14 @@
     chips($("people"), data.people.map(p => [p, p]), state.person, p => { state.person = p; renderForm(); }, add);
     chips($("kinds"), KINDS, state.kind, k => { state.kind = k; renderForm(); });
     $("kindNote").textContent = KIND_NOTES[state.kind] + (state.mixed && state.kind === "drug" ? " このレシートには医薬品でないものが混ざっているかもしれません。" : "");
+    $("otcRow").hidden = state.kind !== "drug";
+    $("otcChip").setAttribute("aria-pressed", String(state.kind === "drug" && !!state.otc));
     $("saveBtn").textContent = state.editing ? "修正を保存" : "記録する";
     $("editActions").hidden = !state.editing;
     $("transportBtn").hidden = !!state.editing;
     placeOptions();
   }
+  $("otcChip").onclick = () => { state.otc = !state.otc; renderForm(); };
   async function addPersonPrompt() {
     const name = (prompt("医療を受けた人の名前（10文字まで）。申告する本人と家族。") || "").trim().slice(0, 10);
     if (!name) return;
@@ -146,7 +174,7 @@
   }
   function reset() {
     const keepDate = state.editing ? today() : ($("date").value || today());
-    state = { person: state.person || data.people[0] || "", kind: "care", editing: null, mixed: false };
+    state = { person: state.person || data.people[0] || "", kind: "care", editing: null, mixed: false, otc: false };
     $("amount").value = ""; $("place").value = ""; $("refund").value = ""; $("memo").value = ""; $("date").value = keepDate;
     $("ocrBox").hidden = true;
     renderForm();
@@ -159,7 +187,7 @@
     if (!place) { toast("病院・薬局などの名称を入れてください"); $("place").focus(); return null; }
     const refund = Math.max(0, Math.round(Number($("refund").value) || 0));
     if (refund > amount) { toast("補填される金額が支払った金額を超えています"); return null; }
-    return { date: $("date").value || today(), amount, person: state.person, place, kind: state.kind, refund, memo: $("memo").value.trim() };
+    return { date: $("date").value || today(), amount, person: state.person, place, kind: state.kind, refund, otc: state.kind === "drug" && !!state.otc, memo: $("memo").value.trim() };
   }
   async function saveRecord(rec, nextTab) {
     const wasEditing = !!state.editing;
@@ -185,7 +213,7 @@
   };
   function edit(id) {
     const i = data.records.find(x => x.id === id); if (!i) return;
-    state = { person: i.person, kind: i.kind, editing: id, mixed: false };
+    state = { person: i.person, kind: i.kind, editing: id, mixed: false, otc: !!i.otc };
     $("date").value = i.date; $("amount").value = i.amount; $("place").value = i.place || ""; $("refund").value = i.refund || ""; $("memo").value = i.memo || "";
     $("ocrBox").hidden = true;
     renderForm(); showTab("add");
@@ -384,10 +412,15 @@
     if (r.amount) $("amount").value = r.amount;
     if (r.place) { $("place").value = r.place; const known = placeOptions().get(r.place); if (known) r.kind = known; }
     state.kind = r.kind; state.mixed = r.mixed;
+    // 受診者：レシートの「〇〇 様」が登録した家族に当たれば選ぶ。市販薬は対象の印があれば付ける
+    const who = matchPerson(r.patient, data.people);
+    if (who) state.person = who;
+    const text = (res.items || []).map(i => i.text || "").join("\n");
+    state.otc = r.kind === "drug" && /セルフメディケーション|★|☆/.test(text);
     renderForm();
-    const got = [r.date && "日付", r.amount && "金額", r.place && "名称"].filter(Boolean);
+    const got = [r.date && "日付", r.amount && "金額", r.place && "名称", who && "受診者"].filter(Boolean);
     ocrNote(got.length
-      ? `${got.join("・")}を読み取りました。医療を受けた人を選び、違っていたら直して「記録する」を押してください。` + (r.amount ? "" : "金額（領収金額・負担額）は読み取れなかったので入れてください。")
+      ? `${got.join("・")}を読み取りました。${who ? "" : "医療を受けた人を選び、"}違っていたら直して「記録する」を押してください。` + (r.amount ? "" : "金額（領収金額・負担額）は読み取れなかったので入れてください。")
       : "読み取れませんでした。明るい場所で撮り直すか、手で入力してください。", res.preview);
   }
   $("scanBtn").onclick = () => readReceipt("scanReceipt");

@@ -3,8 +3,8 @@
 const assert = require("assert");
 const fs = require("fs");
 const path = require("path");
-const { KINDS, groupLines, parseReceipt, summarize, deduction, refundEstimate, formRows, csv, backup, restore } = require("../www/core.js");
-const { writeForm, validate, normalizeRow, MAX_ROWS } = require("../www/xlsx.js");
+const { KINDS, groupLines, parseReceipt, matchPerson, summarize, netTotal, deduction, selfMedication, compareDeductions, refundEstimate, formRows, csv, backup, restore } = require("../www/core.js");
+const { writeForm, validate, normalizeRow, MAX_ROWS, KIND_COL } = require("../www/xlsx.js");
 const fflate = require("../www/vendor/fflate.min.js");
 
 const NOW = new Date(2026, 11, 20);
@@ -14,7 +14,7 @@ const box = rows => rows.flatMap((r, i) => {
   const y = 0.95 - i * 0.05;
   return Array.isArray(r) ? [{ text: r[1], x: 0.7, y, w: 0.2, h: 0.03 }, { text: r[0], x: 0.1, y: y + 0.002, w: 0.2, h: 0.03 }] : [{ text: r, x: 0.1, y, w: 0.5, h: 0.03 }];
 });
-const rec = (date, person, place, kind, amount, refund = 0, memo = "") => ({ id: Math.random().toString(36).slice(2), date, person, place, kind, amount, refund, memo });
+const rec = (date, person, place, kind, amount, refund = 0, memo = "", otc = false) => ({ id: Math.random().toString(36).slice(2), date, person, place, kind, amount, refund, memo, otc });
 const SAMPLE = [
   rec("2026-02-03", "見本 太郎", "みどり内科クリニック", "care", 12340),
   rec("2026-02-03", "見本 太郎", "さくら薬局", "drug", 3210),
@@ -47,6 +47,15 @@ t("合計点数だけで金額がない領収書は金額 0", () => {
 t("未来の日付は採らない", () => { assert.strictEqual(parseReceipt("2027/10/24\n領収金額 100", NOW).date, ""); });
 t("「R8.2.3」の日付", () => { assert.strictEqual(parseReceipt("R8.2.3\n領収金額 100", NOW).date, "2026-02-03"); });
 
+t("受診者：「〇〇 様」「患者氏名」の行から名前を取り、家族の名前に当てる", () => {
+  assert.strictEqual(parseReceipt("みどり内科クリニック\n領収書\n見本 太郎 様\n領収金額 ¥1,230", NOW).patient, "見本 太郎");
+  assert.strictEqual(parseReceipt("さくら薬局\n患者氏名：見本 花子\n一部負担金 ¥3,210", NOW).patient, "見本 花子");
+  assert.strictEqual(parseReceipt("サンプルドラッグ\n2026/10/24\n合計 ¥1,578", NOW).patient, "");
+  assert.strictEqual(matchPerson("見本太郎", ["見本 花子", "見本 太郎"]), "見本 太郎");
+  assert.strictEqual(matchPerson("見本 はな", ["見本 花子"]), "");
+  assert.strictEqual(matchPerson("", ["見本 花子"]), "");
+});
+
 // ---- 集計と控除
 t("年の集計：去年の分は入らない", () => {
   const s = summarize(SAMPLE, 2026);
@@ -60,6 +69,29 @@ t("控除の目安：10万円を引く。所得200万円未満は5%", () => {
   assert.strictEqual(deduction(300000, 0, 5000000).amount, 200000);
   assert.strictEqual(deduction(300000, 0, 1500000).threshold, 75000);
   assert.strictEqual(deduction(3000000, 0, 0).amount, 2000000);     // 上限 200万円
+});
+t("補填はその医療費からだけ引く：引ききれない分は他の医療費から引かない", () => {
+  const recs = [rec("2026-01-10", "A", "病院", "care", 50000, 80000), rec("2026-02-10", "A", "歯科", "care", 30000)];
+  assert.strictEqual(netTotal(recs, 2026), 30000);  // 50,000−80,000 は 0。30,000 はそのまま
+  assert.strictEqual(netTotal(SAMPLE, 2026), 84410);
+});
+t("セルフメディケーション税制の目安：12,000円を超えた分、上限 88,000円。印のある市販薬だけ", () => {
+  const otc = [rec("2026-03-01", "A", "ドラッグ", "drug", 10000, 0, "", true), rec("2026-04-01", "A", "ドラッグ", "drug", 8000, 0, "", true),
+    rec("2026-05-01", "A", "薬局", "drug", 5000, 0, "", false), rec("2026-05-02", "A", "病院", "care", 90000, 0, "", true)];
+  const sm = selfMedication(otc, 2026);
+  assert.deepStrictEqual([sm.total, sm.amount, sm.remaining], [18000, 6000, 0]);
+  assert.strictEqual(selfMedication([rec("2026-01-01", "A", "ド", "drug", 150000, 0, "", true)], 2026).amount, 88000);
+  assert.strictEqual(selfMedication([rec("2026-01-01", "A", "ド", "drug", 10000, 0, "", true)], 2026).remaining, 2000);
+  assert.strictEqual(summarize(otc, 2026).otcTotal, 18000);
+});
+t("通常の医療費控除とセルフメディケーション税制の比較", () => {
+  const few = [rec("2026-03-01", "A", "ドラッグ", "drug", 40000, 0, "", true), rec("2026-04-01", "A", "病院", "care", 30000)];
+  const c1 = compareDeductions(few, 2026, 0);
+  assert.strictEqual(c1.regular.amount, 0); assert.strictEqual(c1.selfmed.amount, 28000); assert.strictEqual(c1.better, "selfmed");
+  const many = few.concat([rec("2026-06-01", "A", "病院", "care", 200000)]);
+  const c2 = compareDeductions(many, 2026, 0);
+  assert.strictEqual(c2.regular.amount, 170000); assert.strictEqual(c2.better, "regular"); assert.strictEqual(c2.diff, 142000);
+  assert.strictEqual(compareDeductions([rec("2026-01-01", "A", "病院", "care", 1000)], 2026, 0).better, "none");
 });
 t("戻る税金の目安：所得税率×1.021 と住民税 10%", () => {
   const e = refundEstimate(200000, 0.10);
@@ -86,6 +118,34 @@ t("確認：空の名前・0円・行数超過を見つける", () => {
   assert.ok(validate([]).length);
   assert.ok(validate([{ person: "", place: "x", kinds: ["care"], amount: 1 }])[0].includes("医療を受けた人"));
   assert.ok(validate(Array.from({ length: MAX_ROWS + 1 }, () => ({ person: "a", place: "b", kinds: ["care"], amount: 1 })))[0].includes("行数"));
+});
+t("集計フォームの列：原本の見出し（6〜7行目）と書き込む列が一致する", () => {
+  const tpl = new Uint8Array(fs.readFileSync(path.join(__dirname, "../www/form/iryouhi_form_v3.1.xlsx")));
+  const files = fflate.unzipSync(tpl), dec = new TextDecoder();
+  const sst = [...dec.decode(files["xl/sharedStrings.xml"]).matchAll(/<si>(.*?)<\/si>/gs)].map(m => m[1].replace(/<rPh.*?<\/rPh>/gs, "").replace(/<[^>]+>/g, ""));
+  const sheet = dec.decode(files["xl/worksheets/sheet1.xml"]);
+  const cell = ref => { const m = sheet.match(new RegExp(`<c r="${ref}"[^>]*t="s"[^>]*><v>(\\d+)</v>`)); return m ? sst[+m[1]] : ""; };
+  assert.strictEqual(cell("A1").replace(/\s+/g, " ").trim(), "医療費集計フォーム Ver.3.1");
+  assert.deepStrictEqual([cell("B6"), cell("C6"), cell("H6"), cell("I6"), cell("J6")], ["医療を受けた人", "病院・薬局などの名称", "支払った医療費の金額", "左のうち、補填される金額", "支払年月日"]);
+  assert.ok(cell("D6").startsWith("医療費の区分"));
+  assert.deepStrictEqual([cell("D7"), cell("E7"), cell("F7"), cell("G7")], ["診療・治療", "医薬品購入", "介護保険サービス", "その他の医療費"]);
+  assert.deepStrictEqual(KIND_COL, { care: "D", drug: "E", kaigo: "F", other: "G" });
+  assert.deepStrictEqual(KINDS.map(k => k[1]), ["診療・治療", "医薬品の購入", "介護保険サービス", "その他（交通費など）"]);
+  assert.deepStrictEqual([cell("B7"), cell("C7"), cell("H7")], ["（全角10文字以内）", "（全角20文字以内）", "（半角数字９桁以内）"]);
+  assert.strictEqual(cell("M2"), "該当する");
+  assert.ok(sheet.includes('sqref="D9:G1003"') && sheet.includes('sqref="H9:I1003"'), "入力規則の範囲は 9〜1003 行");
+  assert.strictEqual(MAX_ROWS, 995);
+});
+t("集計フォームの金額：書き込んだ H・I 列の合計が、アプリの集計と一致する", () => {
+  const tpl = new Uint8Array(fs.readFileSync(path.join(__dirname, "../www/form/iryouhi_form_v3.1.xlsx")));
+  for (const mode of ["group", "each"]) {
+    const rows = formRows(SAMPLE, 2026, mode);
+    const sheet = new TextDecoder().decode(fflate.unzipSync(writeForm(rows, tpl, fflate))["xl/worksheets/sheet1.xml"]);
+    const col = c => [...sheet.matchAll(new RegExp(`<c r="${c}(\\d+)" s="5"><v>(\\d+)</v></c>`, "g"))].filter(m => +m[1] >= 9).reduce((a, m) => a + +m[2], 0);
+    const s = summarize(SAMPLE, 2026);
+    assert.strictEqual(col("H"), s.total, mode); assert.strictEqual(col("I"), s.refund, mode);
+    assert.strictEqual([...sheet.matchAll(/<c r="B(\d+)" s="6" t="s">/g)].filter(m => +m[1] >= 9).length, rows.length, mode + "：行数");
+  }
 });
 t("xlsx を書き出し、原本の構造（シート名・保護・入力規則・共有数式）が残る", () => {
   const tpl = new Uint8Array(fs.readFileSync(path.join(__dirname, "../www/form/iryouhi_form_v3.1.xlsx")));
@@ -117,8 +177,9 @@ t("xlsx：読み取り文字に XML で使えない文字や記号が入って�
 // ---- CSV・バックアップ
 t("CSV の見出しと行", () => {
   const s = csv(SAMPLE, 2026);
-  assert.ok(s.startsWith("﻿支払年月日,医療を受けた人,病院・薬局などの名称,医療費の区分,支払った医療費の金額,補填される金額,メモ\r\n2026/02/03,見本 太郎,"));
-  assert.ok(s.includes("2026/07/21,見本 花子,ひまわり歯科,診療・治療,85000,20000,\r\n"));
+  assert.ok(s.startsWith("﻿支払年月日,医療を受けた人,病院・薬局などの名称,医療費の区分,支払った医療費の金額,補填される金額,セルフメディケーション税制の対象,メモ\r\n2026/02/03,見本 太郎,"));
+  assert.ok(s.includes("2026/07/21,見本 花子,ひまわり歯科,診療・治療,85000,20000,,\r\n"));
+  assert.ok(csv(SAMPLE.concat([rec("2026-03-01", "見本 太郎", "サンプルドラッグ", "drug", 4000, 0, "", true)]), 2026).includes("サンプルドラッグ,医薬品の購入,4000,,対象,"));
   assert.ok(!s.includes("去年の病院"));
 });
 t("バックアップを書いて戻すと同じ記録になる", () => {

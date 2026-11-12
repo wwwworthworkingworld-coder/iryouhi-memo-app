@@ -5,6 +5,8 @@
   const KIND_NAME = Object.fromEntries(KINDS);
   const DEDUCTION_CAP = 2000000;   // 医療費控除の上限（国税庁 No.1120）
   const THRESHOLD = 100000;        // 10万円。総所得金額等が200万円未満の人は所得の5%
+  const SELFMED_THRESHOLD = 12000; // セルフメディケーション税制：12,000円を超えた分（国税庁 No.1129）
+  const SELFMED_CAP = 88000;       // 同、上限 88,000円
   const TAX_RATES = [[0.05, "〜195万円"], [0.10, "〜330万円"], [0.20, "〜695万円"], [0.23, "〜900万円"], [0.33, "〜1,800万円"], [0.40, "〜4,000万円"], [0.45, "4,000万円超"]];
 
   const pad = n => String(n).padStart(2, "0");
@@ -89,11 +91,25 @@
     const head = lines.slice(0, 8);
     const place = (head.find(l => PLACE_WORDS.test(l) && !/領収|明細|患者|様/.test(l)) || head.find(l => /[ぁ-んァ-ヶ一-龠]{2,}/.test(l) && !SKIP.test(l)) || "")
       .replace(/^(医療法人|社会医療法人|医療法人社団|医療法人財団|一般財団法人|社会福祉法人|株式会社|有限会社)/, "").slice(0, 20);
+    // 受診者（「見本 太郎 様」「患者氏名 見本 太郎」の行）。家族の名前と照合するための候補
+    let patient = "";
+    for (const l of raw.split(/\r?\n/).map(l => h(l).trim()).slice(0, 12)) {
+      const m = l.match(/^(?:患者(?:氏名|名|様)?|氏名|お名前|名前)[:：]?\s*(.{1,12}?)\s*(?:様|殿)?$/) || l.match(/^(.{1,12}?)\s*(?:様|殿)$/);
+      if (m && /[ぁ-んァ-ヶ一-龠]/.test(m[1]) && !/領収|明細|保険|病院|薬局|医院|クリニック|患者/.test(m[1])) { patient = m[1].trim(); break; }
+    }
     const rule = KIND_RULES.find(([re]) => re.test(all));
     const kind = rule ? rule[1] : "care";
     // ドラッグストアのレシートは、医薬品でないもの（日用品）が混ざる
     const mixed = kind === "drug" && /ドラッグ|薬店|日用|食品|雑貨|ポイント/.test(all);
-    return { date, amount, place, kind, mixed };
+    return { date, amount, place, kind, mixed, patient };
+  }
+
+  // 読み取った受診者の名前を、登録した家族の名前に当てる（空白の違いを無視。部分一致でもよい）
+  function matchPerson(patient, people) {
+    const norm = s => String(s || "").replace(/[\s　]/g, "");
+    const q = norm(patient);
+    if (!q) return "";
+    return (people || []).find(p => norm(p) === q) || (people || []).find(p => norm(p) && (q.includes(norm(p)) || norm(p).includes(q))) || "";
   }
 
   // 年の集計
@@ -107,7 +123,13 @@
       return [...m.values()].sort((a, b) => b.total - a.total);
     };
     const byKind = KINDS.map(([k, name]) => ({ kind: k, name, total: sum(list.filter(r => r.kind === k), "amount") })).filter(x => x.total);
-    return { year, count: list.length, total: sum(list, "amount"), refund: sum(list, "refund"), byPerson: by("person"), byPlace: by("place"), byKind };
+    const otc = list.filter(r => r.otc && r.kind === "drug");
+    return { year, count: list.length, total: sum(list, "amount"), refund: sum(list, "refund"), otcTotal: sum(otc, "amount"), otcRefund: sum(otc, "refund"), byPerson: by("person"), byPlace: by("place"), byKind };
+  }
+
+  // 記録ごとの「支払った医療費 − 補填」の合計。補填はその医療費からだけ引き、引ききれない分は他の医療費から引かない（国税庁 No.1120）
+  function netTotal(records, year) {
+    return records.filter(r => inYear(r, year)).reduce((s, r) => s + Math.max(0, (Number(r.amount) || 0) - (Number(r.refund) || 0)), 0);
   }
 
   // 控除額の目安。income は総所得金額等（分からなければ空で 10万円を使う）
@@ -117,6 +139,23 @@
     const amount = Math.max(0, Math.min(DEDUCTION_CAP, base - threshold));
     return { base, threshold, amount, remaining: Math.max(0, threshold - base) };
   }
+  // セルフメディケーション税制の目安（印を付けた市販薬だけ。一定の取組が要る。通常の医療費控除との選択）
+  function selfMedication(records, year) {
+    const list = records.filter(r => inYear(r, year) && r.otc && r.kind === "drug");
+    const total = list.reduce((s, r) => s + (Number(r.amount) || 0), 0);
+    const refund = list.reduce((s, r) => s + (Number(r.refund) || 0), 0);
+    const base = Math.max(0, total - refund);
+    return { total, refund, base, threshold: SELFMED_THRESHOLD, amount: Math.max(0, Math.min(SELFMED_CAP, base - SELFMED_THRESHOLD)), remaining: Math.max(0, SELFMED_THRESHOLD - base) };
+  }
+  // 通常の医療費控除とセルフメディケーション税制の比較（どちらか一方しか使えない。選ぶのは本人）
+  function compareDeductions(records, year, income) {
+    const s = summarize(records, year);
+    const regular = deduction(s.total, s.refund, income);
+    const selfmed = selfMedication(records, year);
+    const better = !regular.amount && !selfmed.amount ? "none" : selfmed.amount > regular.amount ? "selfmed" : "regular";
+    return { regular, selfmed, better, diff: Math.abs(regular.amount - selfmed.amount) };
+  }
+
   // 戻ってくる税金の目安。所得税は復興特別所得税を含めた率、住民税は10%
   function refundEstimate(ded, rate) {
     const incomeTax = Math.floor(Math.round(ded * rate * 100) * 1021 / 100000);  // 浮動小数の誤差を避ける
@@ -146,8 +185,8 @@
   function csv(records, year) {
     const q = s => /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
     const list = records.filter(r => !year || inYear(r, year)).slice().sort((a, b) => a.date.localeCompare(b.date));
-    const lines = ["支払年月日,医療を受けた人,病院・薬局などの名称,医療費の区分,支払った医療費の金額,補填される金額,メモ"].concat(
-      list.map(r => [r.date.replace(/-/g, "/"), q(r.person || ""), q(r.place || ""), KIND_NAME[r.kind] || "", r.amount, Number(r.refund) || "", q(r.memo || "")].join(",")));
+    const lines = ["支払年月日,医療を受けた人,病院・薬局などの名称,医療費の区分,支払った医療費の金額,補填される金額,セルフメディケーション税制の対象,メモ"].concat(
+      list.map(r => [r.date.replace(/-/g, "/"), q(r.person || ""), q(r.place || ""), KIND_NAME[r.kind] || "", r.amount, Number(r.refund) || "", r.otc && r.kind === "drug" ? "対象" : "", q(r.memo || "")].join(",")));
     return "﻿" + lines.join("\r\n") + "\r\n";
   }
 
@@ -160,10 +199,10 @@
     if (!o || o.app !== "iryouhi-memo" || !Array.isArray(o.records)) throw new Error("このアプリのバックアップではありません");
     const records = o.records.filter(r => r && /^\d{4}-\d{2}-\d{2}$/.test(r.date) && Number(r.amount) > 0)
       .map(r => ({ id: String(r.id || Math.random().toString(36).slice(2)), date: r.date, person: String(r.person || ""), place: String(r.place || ""),
-        kind: KIND_NAME[r.kind] ? r.kind : "care", amount: Math.round(Number(r.amount)), refund: Math.round(Number(r.refund) || 0), memo: String(r.memo || "").slice(0, 60) }));
+        kind: KIND_NAME[r.kind] ? r.kind : "care", amount: Math.round(Number(r.amount)), refund: Math.round(Number(r.refund) || 0), otc: !!r.otc, memo: String(r.memo || "").slice(0, 60) }));
     return { people: Array.isArray(o.people) ? o.people.map(String).slice(0, 20) : [], settings: o.settings || {}, records };
   }
 
-  const api = { KINDS, KIND_NAME, TAX_RATES, THRESHOLD, DEDUCTION_CAP, groupLines, parseReceipt, summarize, deduction, refundEstimate, formRows, csv, backup, restore };
+  const api = { KINDS, KIND_NAME, TAX_RATES, THRESHOLD, DEDUCTION_CAP, SELFMED_THRESHOLD, SELFMED_CAP, groupLines, parseReceipt, matchPerson, summarize, netTotal, deduction, selfMedication, compareDeductions, refundEstimate, formRows, csv, backup, restore };
   if (typeof module !== "undefined") module.exports = api; else root.IryouhiCore = api;
 })(this);

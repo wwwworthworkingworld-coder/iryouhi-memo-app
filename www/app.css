@@ -62,6 +62,19 @@ input[type=date]{display:block;min-width:0;line-height:46px}
 .form .secondary{margin-top:-6px}
 
 .year,.month{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.year.slim{margin-bottom:6px}
+.year.slim span{font-size:15px;font-weight:700;color:var(--text)}
+.remain-label{display:block;font-size:14px;color:var(--muted);font-weight:700}
+.remain-value{display:block;font-size:44px;font-weight:800;line-height:1.15;font-variant-numeric:tabular-nums;color:var(--main);margin:2px 0 4px}
+.remain-value.over{color:var(--good)}
+.hero .remain-label+.lead{margin-top:10px}
+.bar-wrap.big{height:8px;background:var(--line);border-radius:4px;overflow:hidden;margin:8px 0 6px}
+.bar-wrap.big .bar-fill{height:100%;background:var(--main);border-radius:4px;transition:width .3s}
+.remain .primary{margin-top:12px}
+.total-row{display:flex;justify-content:space-between;align-items:baseline}
+.total-row span{font-size:14px;color:var(--muted)}
+.total-row span small{margin-left:6px;font-size:12px}
+.total-row b{font-size:26px;font-variant-numeric:tabular-nums}
 .year>div,.month>div{text-align:center}
 .year span,.month span{display:block;font-size:13px;color:var(--muted)}
 .year b,.month b{font-size:30px;font-variant-numeric:tabular-nums;line-height:1.2}

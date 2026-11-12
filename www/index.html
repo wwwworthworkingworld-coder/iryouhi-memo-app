@@ -13,21 +13,36 @@
   <main id="scroll">
     <!-- 集計（ホーム） -->
     <section id="tab-home" class="tab">
-      <div class="year">
+      <div class="year slim">
         <button type="button" id="prevYear" aria-label="前の年">‹</button>
-        <div><span>医療費の合計</span><b id="yearTotal">¥0</b><small id="yearLabel"></small></div>
+        <div><span id="yearLabel"></span></div>
         <button type="button" id="nextYear" aria-label="次の年">›</button>
       </div>
 
       <div class="card hero" id="emptyHome" hidden>
-        <p class="lead">病院や薬局のレシートを撮ると、家族別・医療機関別にたまり、ここに今年の合計と控除の目安が出ます。</p>
+        <span class="remain-label">控除の対象まで あと</span>
+        <b class="remain-value" id="emptyRemain">¥100,000</b>
+        <p class="lead">病院や薬局のレシートを撮ると、家族別・医療機関別にたまり、ここに今年の合計と「あといくらで控除の対象になるか」が出ます。</p>
         <button class="primary" type="button" id="homeScan">レシートを撮る</button>
         <p class="note">1月になったら、国税庁の「医療費集計フォーム」の形で書き出して、確定申告書等作成コーナーに読み込めます。</p>
       </div>
 
       <div id="homeBody">
+        <div class="card hero remain">
+          <span class="remain-label" id="remainLabel">控除の対象まで あと</span>
+          <b class="remain-value" id="remainValue">¥0</b>
+          <div class="bar-wrap big"><div class="bar-fill" id="remainBar"></div></div>
+          <p class="note" id="remainNote"></p>
+          <button class="primary" type="button" id="homeScan2">レシートを撮る</button>
+        </div>
+
+        <div class="card">
+          <div class="total-row"><span>医療費の合計<small id="yearCount"></small></span><b id="yearTotal">¥0</b></div>
+          <p class="note tight" id="yearRefund" hidden></p>
+        </div>
+
         <div class="card deduct">
-          <h2>医療費控除の目安</h2>
+          <h2>戻る税金の目安</h2>
           <div class="deduct-main">
             <div><span>控除の対象になる額</span><b id="dedAmount">¥0</b></div>
             <div><span>戻る税金の目安</span><b id="dedRefund">¥0</b></div>
@@ -37,7 +52,17 @@
             <label>所得税率<small>課税される所得</small></label>
             <div class="chips" id="rateChips"></div>
           </div>
-          <p class="note">目安です。10万円（所得200万円未満は所得の5%）を超えた分が控除の対象で、上限200万円。実際の額は作成コーナーの結果が正です。「書き出し」の設定で所得の目安を入れると計算が変わります。</p>
+          <p class="note">目安です。10万円（総所得金額等が200万円未満なら所得の5%）を超えた分が控除の対象で、上限200万円。保険金などで補填される金額は、その医療費からだけ引きます。実際の額は作成コーナーの結果が正です。「書き出し」の設定で所得の目安を入れると計算が変わります。</p>
+        </div>
+
+        <div class="card selfmed" id="selfmedCard" hidden>
+          <h2>セルフメディケーション税制との比較（目安）</h2>
+          <div class="deduct-main">
+            <div><span>通常の医療費控除</span><b id="smRegular">¥0</b></div>
+            <div><span>セルフメディケーション税制</span><b id="smAmount">¥0</b></div>
+          </div>
+          <p class="note" id="smNote"></p>
+          <p class="note">印を付けた市販薬の合計が 12,000円を超えた分（上限 88,000円）。健康診断などの「一定の取組」が必要で、通常の医療費控除とはどちらか一方しか使えません。選ぶときは国税庁の集計フォームは使えず、作成コーナーに直接入力します。</p>
         </div>
 
         <div class="card">
@@ -84,6 +109,11 @@
           <label>区分</label>
           <div class="chips" id="kinds"></div>
           <p class="note tight" id="kindNote"></p>
+        </div>
+        <div id="otcRow" hidden>
+          <label>セルフメディケーション税制 <small>市販薬のうち対象の印（★など）がある分</small></label>
+          <div class="chips"><button type="button" class="chip" id="otcChip" aria-pressed="false">この医薬品は対象</button></div>
+          <p class="note tight">印を付けると、ホームで通常の医療費控除との目安を比べられます。どちらを選ぶかは本人が決めます。</p>
         </div>
         <div>
           <label for="refund">保険金などで補填される金額 <small>高額療養費・出産育児一時金・生命保険など。なければ空欄</small></label>
