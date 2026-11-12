@@ -98,7 +98,7 @@ t("xlsx を書き出し、原本の構造（シート名・保護・入力規則
   assert.ok(sheet.includes("<sheetProtection") && sheet.includes('<dataValidations count="4">'));
   assert.ok(sheet.includes('<f t="shared" ref="A11:A74" si="0">ROW()-8</f>'), "共有数式の親セルが残る");
   assert.ok(/<c r="H9" s="5"><v>\d+<\/v><\/c>/.test(sheet));
-  assert.ok(/<c r="D9" s="6" t="s"><v>1<\/v><\/c>/.test(sheet), "「該当する」は原本の共有文字列 1 番を使う");
+  assert.ok(/<c r="D\d+" s="6" t="s"><v>1<\/v><\/c>/.test(sheet) && /<c r="E9" s="6" t="s"><v>1<\/v><\/c>/.test(sheet), "「該当する」は原本の共有文字列 1 番を使う（1行目は文字コード順で さくら薬局＝医薬品）");
   assert.ok(sst.includes("<t xml:space=\"preserve\">見本 太郎</t>"));
   const uniq = +sst.match(/uniqueCount="(\d+)"/)[1];
   assert.strictEqual(uniq, 82 + new Set(["見本 太郎", "見本 花子", "みどり内科クリニック", "さくら薬局", "ひまわり歯科", "電車・バス"]).size);
