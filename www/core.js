@@ -124,11 +124,13 @@
     return { incomeTax, residentTax, total: incomeTax + residentTax };
   }
 
+  // 並び順は OS の言語設定に左右されないよう文字コード順（localeCompare は Mac と Windows で結果が違う）
+  const cmp = (a, b) => a < b ? -1 : a > b ? 1 : 0;
   // 集計フォームの行にする。mode "group"：家族×施設×区分でまとめる（日付なし）。"each"：1件ずつ（日付あり）
   function formRows(records, year, mode = "group") {
     const list = records.filter(r => inYear(r, year) && r.amount > 0);
     if (mode === "each") {
-      return list.slice().sort((a, b) => (a.person + a.date).localeCompare(b.person + b.date))
+      return list.slice().sort((a, b) => cmp(a.person + "" + a.date, b.person + "" + b.date))
         .map(r => ({ person: r.person, place: r.place, kinds: [r.kind], amount: r.amount, refund: Number(r.refund) || 0, date: r.date }));
     }
     const m = new Map();
@@ -137,7 +139,7 @@
       const o = m.get(k) || { person: r.person, place: r.place, kinds: [r.kind], amount: 0, refund: 0 };
       o.amount += r.amount; o.refund += Number(r.refund) || 0; m.set(k, o);
     });
-    return [...m.values()].sort((a, b) => (a.person + a.place).localeCompare(b.person + b.place));
+    return [...m.values()].sort((a, b) => cmp(a.person + "" + a.place, b.person + "" + b.place));
   }
 
   // CSV（Excel で開く用。見出しは集計フォームの列名に合わせる）
