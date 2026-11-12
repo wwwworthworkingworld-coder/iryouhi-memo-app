@@ -1,0 +1,60 @@
+name: iOS screens
+# ストア画像の元になる画面を、シミュレーターの実際のアプリで撮る（架空のデータ）
+on:
+  workflow_dispatch:
+
+jobs:
+  screens:
+    runs-on: macos-26
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - name: 撮影用の差し込み
+        run: |
+          python3 - <<'PY'
+          import base64, pathlib
+          preview = base64.b64encode(pathlib.Path("test/fixtures/clinic_preview.jpg").read_bytes()).decode()
+          pathlib.Path("www/mock_native.js").write_text(f'window.__receiptPreview="{preview}";\n' + pathlib.Path("tools/mock_native.js").read_text(encoding="utf-8"), encoding="utf-8")
+          p = pathlib.Path("www/index.html")
+          p.write_text(p.read_text(encoding="utf-8").replace('<script src="app.js">', '<script src="mock_native.js"></script>\n<script src="app.js">'), encoding="utf-8")
+          PY
+      - run: npx cap sync ios
+      - name: ビルド
+        run: |
+          xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Debug \
+            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build CODE_SIGNING_ALLOWED=NO build | tail -5
+      - name: 撮影
+        run: |
+          UDID=$(xcrun simctl list devices available -j | python3 -c "
+          import json,sys
+          d=json.load(sys.stdin)['devices']
+          c=[x for k,v in d.items() if 'iOS' in k for x in v if x['name'].startswith('iPhone') and 'Pro Max' in x['name']]
+          print(c[-1]['udid'])")
+          xcrun simctl boot "$UDID"
+          xcrun simctl bootstatus "$UDID" -b
+          xcrun simctl spawn "$UDID" defaults write "Apple Global Domain" AppleLanguages -array ja-JP
+          xcrun simctl spawn "$UDID" defaults write "Apple Global Domain" AppleLocale -string ja_JP
+          xcrun simctl shutdown "$UDID"
+          xcrun simctl boot "$UDID"
+          xcrun simctl bootstatus "$UDID" -b
+          xcrun simctl status_bar "$UDID" override --time 9:41 --batteryLevel 100 --batteryState charged --cellularBars 4 --wifiBars 3
+          APP=$(find build/Build/Products -name 'App.app' -maxdepth 3 | head -1)
+          xcrun simctl install "$UDID" "$APP"
+          xcrun simctl launch "$UDID" com.company256.iryouhi
+          mkdir screens
+          SECONDS=0
+          t=40
+          for name in 1_home 2_scan 3_list 4_more; do
+            sleep $((t - SECONDS))
+            xcrun simctl io "$UDID" screenshot "screens/$name.png"
+            t=$((t + 60))
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: screens
+          path: screens

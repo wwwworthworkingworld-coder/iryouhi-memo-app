@@ -1,0 +1,7 @@
+{
+  "name": "keihi-scanner",
+  "version": "1.0.0",
+  "private": true,
+  "description": "レシートの撮影と、端末の中での文字読み取り",
+  "capacitor": { "ios": { "src": "ios" } }
+}

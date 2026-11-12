@@ -1,0 +1,9 @@
+{
+  "appId": "com.company256.iryouhi",
+  "appName": "医療費控除メモ",
+  "webDir": "www",
+  "ios": {
+    "contentInset": "never",
+    "scrollEnabled": false
+  }
+}

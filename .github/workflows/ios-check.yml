@@ -1,0 +1,52 @@
+name: iOS check
+# Apple の登録がなくても動く確認：試験、読み取り、ビルド、シミュレーターでの起動
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: macos-26
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - name: 計算処理の試験
+        run: node test/core.test.js
+      - name: アプリと同じ読み取り処理を架空のレシートにかける
+        run: |
+          swiftc -parse-as-library -O plugins/keihi-scanner/ios/Sources/KeihiScannerPlugin/KeihiOCR.swift tools/ocr_cli.swift -o ocr_cli
+          ./ocr_cli test/fixtures/*.png > ocr_result.json
+          node test/core.test.js ocr_result.json
+      - run: npx cap sync ios
+      - name: シミュレーター用にビルド
+        run: |
+          xcodebuild -version
+          xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Debug \
+            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build CODE_SIGNING_ALLOWED=NO build | tail -30
+      - name: シミュレーターで起動して画面を撮る
+        run: |
+          UDID=$(xcrun simctl list devices available -j | python3 -c "import json,sys; d=json.load(sys.stdin)['devices']; print([x['udid'] for k,v in d.items() if 'iOS' in k for x in v if x['name'].startswith('iPhone')][-1])")
+          xcrun simctl boot "$UDID"
+          xcrun simctl bootstatus "$UDID" -b
+          APP=$(find build/Build/Products -name 'App.app' -maxdepth 3 | head -1)
+          xcrun simctl install "$UDID" "$APP"
+          grep -c KeihiScannerPlugin "$APP/capacitor.config.json"
+          (xcrun simctl launch --console-pty "$UDID" com.company256.iryouhi > app_console.txt 2>&1 &)
+          sleep 25
+          xcrun simctl io "$UDID" screenshot screen_add.png
+          cat app_console.txt
+          ! grep -E "\[error\]|ERROR MESSAGE" app_console.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ios-check
+          path: |
+            ocr_result.json
+            screen_add.png
+            app_console.txt

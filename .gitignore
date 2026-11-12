@@ -1,0 +1,6 @@
+node_modules/
+ios/App/build/
+ios/DerivedData/
+*.p8
+*.csv
+!test/fixtures/*.csv

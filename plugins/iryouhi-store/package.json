@@ -1,0 +1,7 @@
+{
+  "name": "iryouhi-store",
+  "version": "1.0.0",
+  "private": true,
+  "description": "アプリ内課金（StoreKit 2）。集計フォームの書き出しの買い切り",
+  "capacitor": { "ios": { "src": "ios" } }
+}

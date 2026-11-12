@@ -1,0 +1,62 @@
+{
+ "clinic": {
+  "date": "2026-02-03",
+  "amount": 1230,
+  "place": "みどり内科クリニック",
+  "kind": "care"
+ },
+ "clinic_rough": {
+  "date": "2026-02-03",
+  "amount": 1230,
+  "place": "みどり内科クリニック",
+  "kind": "care"
+ },
+ "pharmacy": {
+  "date": "2026-02-03",
+  "amount": 3210,
+  "place": "さくら薬局駅前店",
+  "kind": "drug"
+ },
+ "pharmacy_rough": {
+  "date": "2026-02-03",
+  "amount": 3210,
+  "place": "さくら薬局駅前店",
+  "kind": "drug"
+ },
+ "dental": {
+  "date": "2026-07-21",
+  "amount": 38540,
+  "place": "ひまわり歯科医院",
+  "kind": "care"
+ },
+ "dental_rough": {
+  "date": "2026-07-21",
+  "amount": 38540,
+  "place": "ひまわり歯科医院",
+  "kind": "care"
+ },
+ "drugstore": {
+  "date": "2026-10-24",
+  "amount": 1578,
+  "place": "サンプルドラッグ品川店",
+  "kind": "drug"
+ },
+ "drugstore_rough": {
+  "date": "2026-10-24",
+  "amount": 1578,
+  "place": "サンプルドラッグ品川店",
+  "kind": "drug"
+ },
+ "taxi": {
+  "date": "2026-08-03",
+  "amount": 2700,
+  "place": "みどりタクシー",
+  "kind": "other"
+ },
+ "taxi_rough": {
+  "date": "2026-08-03",
+  "amount": 2700,
+  "place": "みどりタクシー",
+  "kind": "other"
+ }
+}

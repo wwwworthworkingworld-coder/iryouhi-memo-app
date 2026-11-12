@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>医療費控除メモ</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div class="app">
+  <header class="bar"><h1 id="title">集計</h1></header>
+
+  <main id="scroll">
+    <!-- 集計（ホーム） -->
+    <section id="tab-home" class="tab">
+      <div class="year">
+        <button type="button" id="prevYear" aria-label="前の年">‹</button>
+        <div><span>医療費の合計</span><b id="yearTotal">¥0</b><small id="yearLabel"></small></div>
+        <button type="button" id="nextYear" aria-label="次の年">›</button>
+      </div>
+
+      <div class="card hero" id="emptyHome" hidden>
+        <p class="lead">病院や薬局のレシートを撮ると、家族別・医療機関別にたまり、ここに今年の合計と控除の目安が出ます。</p>
+        <button class="primary" type="button" id="homeScan">レシートを撮る</button>
+        <p class="note">1月になったら、国税庁の「医療費集計フォーム」の形で書き出して、確定申告書等作成コーナーに読み込めます。</p>
+      </div>
+
+      <div id="homeBody">
+        <div class="card deduct">
+          <h2>医療費控除の目安</h2>
+          <div class="deduct-main">
+            <div><span>控除の対象になる額</span><b id="dedAmount">¥0</b></div>
+            <div><span>戻る税金の目安</span><b id="dedRefund">¥0</b></div>
+          </div>
+          <p class="note" id="dedNote"></p>
+          <div class="rates-row">
+            <label>所得税率<small>課税される所得</small></label>
+            <div class="chips" id="rateChips"></div>
+          </div>
+          <p class="note">目安です。10万円（所得200万円未満は所得の5%）を超えた分が控除の対象で、上限200万円。実際の額は作成コーナーの結果が正です。「書き出し」の設定で所得の目安を入れると計算が変わります。</p>
+        </div>
+
+        <div class="card">
+          <h2>家族別</h2>
+          <ul class="list" id="byPerson"></ul>
+        </div>
+        <div class="card">
+          <h2>区分別</h2>
+          <ul class="list" id="byKind"></ul>
+        </div>
+        <div class="card">
+          <h2>病院・薬局別</h2>
+          <ul class="list" id="byPlace"></ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- 記録 -->
+    <section id="tab-add" class="tab" hidden>
+      <div class="scan">
+        <button class="primary" type="button" id="scanBtn">レシートを撮る</button>
+        <button class="secondary" type="button" id="pickBtn">写真から読む</button>
+      </div>
+      <div class="ocr" id="ocrBox" hidden>
+        <img id="ocrImg" alt="読み取ったレシート">
+        <p id="ocrNote"></p>
+      </div>
+
+      <form class="card form" id="form" autocomplete="off">
+        <div class="row2">
+          <div><label for="date">支払った日</label><input id="date" type="date" required></div>
+          <div class="amount"><label for="amount">支払った金額（円）</label><input id="amount" type="number" inputmode="numeric" min="1" step="1" placeholder="0" required></div>
+        </div>
+        <div>
+          <label>医療を受けた人</label>
+          <div class="chips" id="people"></div>
+        </div>
+        <div>
+          <label for="place">病院・薬局などの名称 <small>20文字まで</small></label>
+          <input id="place" type="text" maxlength="20" list="placeList" placeholder="例：みどり内科クリニック">
+          <datalist id="placeList"></datalist>
+        </div>
+        <div>
+          <label>区分</label>
+          <div class="chips" id="kinds"></div>
+          <p class="note tight" id="kindNote"></p>
+        </div>
+        <div>
+          <label for="refund">保険金などで補填される金額 <small>高額療養費・出産育児一時金・生命保険など。なければ空欄</small></label>
+          <input id="refund" type="number" inputmode="numeric" min="0" step="1" placeholder="0">
+        </div>
+        <div><label for="memo">メモ <small>任意</small></label><input id="memo" type="text" maxlength="60" placeholder="例：定期健診、薬の名前"></div>
+        <button class="primary" type="submit" id="saveBtn">記録する</button>
+        <button class="secondary" type="button" id="transportBtn">同じ日の通院の交通費も記録する</button>
+        <div class="edit-actions" id="editActions" hidden>
+          <button class="secondary" type="button" id="cancelBtn">やめる</button>
+          <button class="secondary danger" type="button" id="deleteBtn">削除する</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- 一覧 -->
+    <section id="tab-list" class="tab" hidden>
+      <div class="month">
+        <button type="button" id="prevMonth" aria-label="前の月">‹</button>
+        <div><span id="monthLabel"></span><b id="monthTotal">¥0</b></div>
+        <button type="button" id="nextMonth" aria-label="次の月">›</button>
+      </div>
+      <div class="chips filter" id="personFilter"></div>
+      <ul class="card list" id="list"></ul>
+    </section>
+
+    <!-- 書き出し -->
+    <section id="tab-more" class="tab" hidden>
+      <div class="card">
+        <h2>国税庁の集計フォームに書き出す</h2>
+        <p class="note">国税庁「医療費集計フォーム」（Excel）の形で書き出します。確定申告書等作成コーナーの医療費控除の画面で読み込むと、明細を打ち直さずに済みます。</p>
+        <div class="row2">
+          <div><label for="formYear">年分</label><select id="formYear"></select></div>
+          <div><label for="formMode">まとめ方</label><select id="formMode"><option value="group">家族×病院ごとにまとめる</option><option value="each">1件ずつ（日付つき）</option></select></div>
+        </div>
+        <p class="sum" id="formPreview"></p>
+        <div id="buyBox" hidden>
+          <p class="note"><b>集計フォームの書き出しは、1回の購入でずっと使えます。</b>記録・読み取り・集計は無料のままです。</p>
+          <button class="primary" type="button" id="buyBtn">購入して書き出せるようにする</button>
+          <button class="secondary" type="button" id="restoreBtn">購入を復元する</button>
+        </div>
+        <button class="primary" type="button" id="exportForm">集計フォームを書き出す</button>
+        <details class="howto">
+          <summary>作成コーナーでの読み込み方</summary>
+          <ol>
+            <li>書き出したファイルを「ファイル」アプリに保存します（パソコンに送ってもかまいません）。</li>
+            <li>国税庁の確定申告書等作成コーナーで「医療費控除」を選びます。</li>
+            <li>「医療費集計フォームを読み込んで入力する」を選び、保存したファイルを選びます。</li>
+            <li>読み込まれた明細を確かめます。マイナポータル連携で取り込んだ分と重ならないようにしてください。</li>
+          </ol>
+          <p class="note">セルフメディケーション税制を使う場合、このフォームは使えません（国税庁の案内）。領収書は5年間保管してください。</p>
+        </details>
+      </div>
+
+      <div class="card">
+        <h2>CSVに書き出す</h2>
+        <p class="note">Excel などで開ける一覧です。年分を選んで書き出します。</p>
+        <button class="secondary" type="button" id="exportCsv">CSVを書き出す</button>
+      </div>
+
+      <div class="card">
+        <h2>設定</h2>
+        <div class="setting">
+          <label>家族の名前 <small>医療を受けた人として選びます</small></label>
+          <ul class="list" id="peopleList"></ul>
+          <div class="row-add"><input id="newPerson" type="text" maxlength="10" placeholder="名前（10文字まで）"><button class="secondary small" type="button" id="addPerson">追加</button></div>
+        </div>
+        <div class="setting">
+          <label for="income">総所得金額等の目安（円） <small>任意。200万円未満なら控除の計算が変わります</small></label>
+          <input id="income" type="number" inputmode="numeric" min="0" step="1" placeholder="空欄なら10万円で計算">
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>バックアップ</h2>
+        <p class="note">機種変更のときは、バックアップを書き出して新しい iPhone で読み込みます。ファイルは自分で保存し、どこにも送られません。</p>
+        <button class="secondary" type="button" id="backupBtn">バックアップを書き出す</button>
+        <label class="secondary file">バックアップを読み込む<input id="restoreFile" type="file" accept=".json,application/json" hidden></label>
+      </div>
+
+      <div class="card links">
+        <h2>このアプリについて</h2>
+        <p class="note">記録もレシートの文字の読み取りも、このiPhoneの中だけで行います。どこにも送信せず、iCloudにも保存しません。写真は保存しません。</p>
+        <button class="row-link" type="button" id="privacyBtn">プライバシーポリシー<span>›</span></button>
+        <button class="row-link" type="button" id="supportBtn">お問い合わせ<span>›</span></button>
+        <p class="note">提供：株式会社256　バージョン <span id="version">1.0.0</span></p>
+      </div>
+    </section>
+  </main>
+
+  <nav class="tabs" aria-label="画面の切り替え">
+    <button type="button" data-tab="home" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>集計</button>
+    <button type="button" data-tab="add"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2h12a1 1 0 0 1 1 1v18l-2.5-1.5L14 21l-2-1.5L10 21l-2.5-1.5L5 21V3a1 1 0 0 1 1-1z"/><path d="M12 7v6M9 10h6"/></svg>記録</button>
+    <button type="button" data-tab="list"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/></svg>一覧</button>
+    <button type="button" data-tab="more"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3M7 8l5-5 5 5"/><path d="M4 14v6a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-6"/></svg>書き出し</button>
+  </nav>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script src="vendor/fflate.min.js"></script>
+<script src="core.js"></script>
+<script src="xlsx.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
