@@ -145,6 +145,23 @@
     return records.filter(r => inYear(r, year)).reduce((s, r) => s + Math.max(0, (Number(r.amount) || 0) - (Number(r.refund) || 0)), 0);
   }
 
+  // 集計の行（家族別・区分別・病院別）と同じ条件で記録を絞る。f: { person?, kind?, place? }。名前が空の記録は「（未設定）」として扱う
+  const UNSET = "（未設定）";
+  function filterRecords(records, year, f = {}) {
+    return records.filter(r => inYear(r, year)
+      && (f.person == null || (r.person || UNSET) === f.person)
+      && (f.kind == null || r.kind === f.kind)
+      && (f.place == null || (r.place || UNSET) === f.place))
+      .slice().sort((a, b) => (b.date + b.id) < (a.date + a.id) ? -1 : (b.date + b.id) > (a.date + a.id) ? 1 : 0);
+  }
+  function filterSummary(list) {
+    return { count: list.length, total: list.reduce((s, r) => s + (Number(r.amount) || 0), 0), refund: list.reduce((s, r) => s + (Number(r.refund) || 0), 0) };
+  }
+  // 絞り込みの見出し（例「ひまわり歯科」「見本 太郎」「医薬品の購入」）
+  function filterLabel(f) {
+    return [f.person, f.place, f.kind && KIND_NAME[f.kind]].filter(Boolean).join("・");
+  }
+
   // 控除額の目安。income は総所得金額等（分からなければ空で 10万円を使う）
   function deduction(total, refund, income) {
     const base = Math.max(0, total - refund);
@@ -216,6 +233,6 @@
     return { people: Array.isArray(o.people) ? o.people.map(String).slice(0, 20) : [], settings: o.settings || {}, records };
   }
 
-  const api = { KINDS, KIND_NAME, TAX_RATES, THRESHOLD, DEDUCTION_CAP, SELFMED_THRESHOLD, SELFMED_CAP, groupLines, parseReceipt, matchPerson, sameDayVisits, transportFor, summarize, netTotal, deduction, selfMedication, compareDeductions, refundEstimate, formRows, csv, backup, restore };
+  const api = { KINDS, KIND_NAME, TAX_RATES, THRESHOLD, DEDUCTION_CAP, SELFMED_THRESHOLD, SELFMED_CAP, groupLines, parseReceipt, matchPerson, sameDayVisits, transportFor, summarize, filterRecords, filterSummary, filterLabel, netTotal, deduction, selfMedication, compareDeductions, refundEstimate, formRows, csv, backup, restore };
   if (typeof module !== "undefined") module.exports = api; else root.IryouhiCore = api;
 })(this);

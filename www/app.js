@@ -1,5 +1,5 @@
 (async () => {
-  const { KINDS, KIND_NAME, TAX_RATES, groupLines, parseReceipt, matchPerson, sameDayVisits, transportFor, summarize, netTotal, deduction, compareDeductions, refundEstimate, formRows, csv, backup, restore } = window.IryouhiCore;
+  const { KINDS, KIND_NAME, TAX_RATES, groupLines, parseReceipt, matchPerson, sameDayVisits, transportFor, summarize, filterRecords, filterSummary, filterLabel, netTotal, deduction, compareDeductions, refundEstimate, formRows, csv, backup, restore } = window.IryouhiCore;
   const { writeForm, validate } = window.IryouhiXlsx;
   const KEY = "iryouhi-memo-v1";
   const PRODUCT_ID = "com.company256.iryouhi.form";
@@ -39,6 +39,7 @@
   let viewYear = +today().slice(0, 4);
   let viewMonth = today().slice(0, 7);
   let filterPerson = "";
+  let listFilter = null;   // 集計の行から来た絞り込み { year, person?, kind?, place? }
   let purchased = false;
 
   // ---- 画面の切り替え
@@ -56,7 +57,7 @@
     if (name === "more") renderMore();
     if (name === "add" && !state.editing) renderForm();
   }
-  document.querySelectorAll(".tabs button").forEach(b => { b.onclick = () => { if (state.editing && b.dataset.tab !== "add") reset(); showTab(b.dataset.tab); }; });
+  document.querySelectorAll(".tabs button").forEach(b => { b.onclick = () => { if (state.editing && b.dataset.tab !== "add") reset(); if (b.dataset.tab === "list") listFilter = null; showTab(b.dataset.tab); }; });
 
   // ---- 共通の部品
   function chips(el, list, selected, onPick, extra) {
@@ -120,18 +121,20 @@
         + (c.better === "none" ? "" : c.better === "selfmed" ? ` 今の記録ではセルフメディケーション税制のほうが ${yen(c.diff)} 大きい目安です。` : ` 今の記録では通常の医療費控除のほうが ${yen(c.diff)} 大きい目安です。`);
     }
     const max = Math.max(1, ...s.byPerson.map(p => p.total));
-    const rows = (ul, arr, label) => {
+    const rows = (ul, arr, label, toFilter) => {
       ul.innerHTML = "";
       arr.forEach(x => {
         const li = document.createElement("li"); li.className = "sum";
         li.innerHTML = `<span class="t">${esc(label(x))}<div class="bar-wrap"><div class="bar-fill" style="width:${Math.round(x.total / max * 100)}%"></div></div></span>`
           + `<span class="a">${yen(x.total)}${x.refund ? `<small>補填 −${yen(x.refund)}</small>` : x.count ? `<small>${x.count}件</small>` : ""}</span>`;
+        li.setAttribute("role", "button"); li.setAttribute("aria-label", `${label(x)} の記録を見る`);
+        li.onclick = () => { listFilter = Object.assign({ year: viewYear }, toFilter(x)); showTab("list"); };
         ul.appendChild(li);
       });
     };
-    rows($("byPerson"), s.byPerson, x => x.name);
-    rows($("byKind"), s.byKind, x => x.name);
-    rows($("byPlace"), s.byPlace.slice(0, 12), x => x.name);
+    rows($("byPerson"), s.byPerson, x => x.name, x => ({ person: x.name }));
+    rows($("byKind"), s.byKind, x => x.name, x => ({ kind: x.kind }));
+    rows($("byPlace"), s.byPlace.slice(0, 12), x => x.name, x => ({ place: x.name }));
   }
   $("prevYear").onclick = () => { viewYear--; renderHome(); };
   $("nextYear").onclick = () => { viewYear++; renderHome(); };
@@ -257,17 +260,31 @@
   // ---- 一覧
   const shiftMonth = (ym, n) => { const [y, m] = ym.split("-").map(Number); const d = new Date(y, m - 1 + n, 1); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}`; };
   function renderList() {
-    const [y, m] = viewMonth.split("-").map(Number);
-    $("monthLabel").textContent = `${y}年${m}月の合計`;
-    const all = data.records.filter(i => i.date.startsWith(viewMonth));
-    const inMonth = all.filter(i => !filterPerson || i.person === filterPerson).sort((a, b) => (b.date + b.id).localeCompare(a.date + a.id));
-    $("monthTotal").textContent = yen(inMonth.reduce((s, i) => s + i.amount, 0));
-    $("nextMonth").disabled = viewMonth >= today().slice(0, 7);
+    const f = listFilter;
+    let inMonth;
+    $("filterBar").hidden = !f; $("filterNote").hidden = !f;
+    $("prevMonth").hidden = $("nextMonth").hidden = !!f;
+    $("filterTransport").hidden = !(f && f.place && f.place !== "（未設定）");
     const pf = $("personFilter");
-    if (data.people.length > 1) { pf.hidden = false; chips(pf, [["", "全員"]].concat(data.people.map(p => [p, p])), filterPerson, p => { filterPerson = p; renderList(); }); }
-    else pf.hidden = true;
+    if (f) {
+      inMonth = filterRecords(data.records, f.year, f);
+      const fs = filterSummary(inMonth);
+      $("monthLabel").textContent = `${f.year}年分　${filterLabel(f)}`;
+      $("filterDesc").textContent = `${filterLabel(f)}　${fs.count}件${fs.refund ? `　補填 −${yen(fs.refund)}` : ""}`;
+      $("monthTotal").textContent = yen(fs.total);
+      pf.hidden = true;
+    } else {
+      const [y, m] = viewMonth.split("-").map(Number);
+      $("monthLabel").textContent = `${y}年${m}月の合計`;
+      const all = data.records.filter(i => i.date.startsWith(viewMonth));
+      inMonth = all.filter(i => !filterPerson || i.person === filterPerson).sort((a, b) => (b.date + b.id).localeCompare(a.date + a.id));
+      $("monthTotal").textContent = yen(inMonth.reduce((s, i) => s + i.amount, 0));
+      $("nextMonth").disabled = viewMonth >= today().slice(0, 7);
+      if (data.people.length > 1) { pf.hidden = false; chips(pf, [["", "全員"]].concat(data.people.map(p => [p, p])), filterPerson, p => { filterPerson = p; renderList(); }); }
+      else pf.hidden = true;
+    }
     const ul = $("list"); ul.innerHTML = "";
-    if (!inMonth.length) { ul.innerHTML = '<li class="empty">この月の記録はありません</li>'; return; }
+    if (!inMonth.length) { ul.innerHTML = `<li class="empty">${f ? "この条件の記録はありません" : "この月の記録はありません"}</li>`; return; }
     inMonth.forEach(i => {
       const li = document.createElement("li");
       li.innerHTML = `<span class="d">${i.date.slice(5).replace("-", "/")}</span>`
@@ -279,6 +296,14 @@
       ul.appendChild(li);
     });
   }
+  $("clearFilter").onclick = () => { listFilter = null; renderList(); };
+  // 絞った病院の交通費：その病院のいちばん新しい通院の日・人で記録画面を開く
+  $("filterTransport").onclick = () => {
+    const f = listFilter; if (!f || !f.place) return;
+    const latest = filterRecords(data.records, f.year, f).find(r => r.kind !== "other") || filterRecords(data.records, f.year, f)[0];
+    if (!latest) return;
+    startTransport(Object.assign({}, latest, { place: f.place === "（未設定）" ? "" : f.place }));
+  };
   $("prevMonth").onclick = () => { viewMonth = shiftMonth(viewMonth, -1); renderList(); };
   $("nextMonth").onclick = () => { viewMonth = shiftMonth(viewMonth, 1); renderList(); };
 

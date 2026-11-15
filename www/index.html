@@ -140,8 +140,14 @@
         <div><span id="monthLabel"></span><b id="monthTotal">¥0</b></div>
         <button type="button" id="nextMonth" aria-label="次の月">›</button>
       </div>
+      <div class="filter-bar" id="filterBar" hidden>
+        <span id="filterDesc"></span>
+        <button type="button" class="chip" id="clearFilter">絞り込みを解除</button>
+      </div>
       <div class="chips filter" id="personFilter"></div>
       <ul class="card list" id="list"></ul>
+      <button class="secondary" type="button" id="filterTransport" hidden>この病院の交通費を足す</button>
+      <p class="note" id="filterNote" hidden>記録を押すと修正・削除できます。</p>
     </section>
 
     <!-- 書き出し -->

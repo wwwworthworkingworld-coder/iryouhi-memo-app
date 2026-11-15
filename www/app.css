@@ -82,6 +82,12 @@ input[type=date]{display:block;min-width:0;line-height:46px}
 .year button,.month button{width:48px;height:48px;border:0;background:none;font-size:30px;color:var(--main)}
 .year button:disabled,.month button:disabled{opacity:.25}
 .filter{margin-bottom:12px}
+.filter-bar{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:-4px 0 12px;font-size:13px;color:var(--muted)}
+.filter-bar span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.filter-bar .chip{flex:none}
+.list li.sum{cursor:pointer}
+.list li.sum .t::after{content:"›";color:var(--muted);margin-left:6px;font-size:14px}
+#filterTransport{margin-top:12px}
 
 .deduct-main{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:8px 0}
 .deduct-main div{background:var(--bg);border-radius:12px;padding:10px 12px}

@@ -3,7 +3,7 @@
 const assert = require("assert");
 const fs = require("fs");
 const path = require("path");
-const { KINDS, groupLines, parseReceipt, matchPerson, sameDayVisits, transportFor, summarize, netTotal, deduction, selfMedication, compareDeductions, refundEstimate, formRows, csv, backup, restore } = require("../www/core.js");
+const { KINDS, groupLines, parseReceipt, matchPerson, sameDayVisits, transportFor, summarize, filterRecords, filterSummary, filterLabel, netTotal, deduction, selfMedication, compareDeductions, refundEstimate, formRows, csv, backup, restore } = require("../www/core.js");
 const { writeForm, validate, normalizeRow, MAX_ROWS, KIND_COL } = require("../www/xlsx.js");
 const fflate = require("../www/vendor/fflate.min.js");
 
@@ -70,6 +70,27 @@ t("交通費の行：同じ日・同じ人、名称は「電車・バス（通�
   const t2 = transportFor(rec("2026-02-03", "A", "とても長い名前の総合病院リハビリテーションセンター", "care", 1));
   assert.ok(t2.place.length <= 20 && t2.place.startsWith("電車・バス（") && t2.place.endsWith("…）"));
   assert.strictEqual(transportFor(rec("2026-02-03", "A", "", "care", 1)).place, "電車・バス");
+});
+
+t("絞り込み：家族別・区分別・病院別の各行と同じ条件で抽出し、件数・合計・補填が集計の数字と一致する", () => {
+  const recs = SAMPLE.concat([rec("2026-03-03", "", "", "care", 700)]);  // 名前・名称が空の記録は「（未設定）」
+  const s = summarize(recs, 2026);
+  for (const [arr, key] of [[s.byPerson, "person"], [s.byPlace, "place"]]) {
+    assert.ok(arr.length >= 2);
+    for (const row of arr) {
+      const list = filterRecords(recs, 2026, { [key]: row.name });
+      const fs = filterSummary(list);
+      assert.deepStrictEqual([fs.count, fs.total, fs.refund], [row.count, row.total, row.refund], key + ":" + row.name);
+    }
+  }
+  for (const row of s.byKind) assert.strictEqual(filterSummary(filterRecords(recs, 2026, { kind: row.kind })).total, row.total, row.kind);
+  assert.strictEqual(filterRecords(recs, 2026, { person: "（未設定）" }).length, 1);
+  assert.strictEqual(filterRecords(recs, 2025, { place: "去年の病院" }).length, 1);
+  assert.strictEqual(filterRecords(recs, 2026, { place: "去年の病院" }).length, 0);
+  const l = filterRecords(recs, 2026, { person: "見本 太郎" });
+  assert.ok(l.every((r, i) => i === 0 || r.date <= l[i - 1].date), "新しい順");
+  assert.strictEqual(filterLabel({ place: "ひまわり歯科" }), "ひまわり歯科");
+  assert.strictEqual(filterLabel({ kind: "drug" }), "医薬品の購入");
 });
 
 // ---- 集計と控除
