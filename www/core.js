@@ -220,6 +220,14 @@
     return "﻿" + lines.join("\r\n") + "\r\n";
   }
 
+  // レビューをお願いしてよいか。Apple の標準ダイアログを頼むだけ（出すかどうかは Apple が決める）。1 回だけ。
+  // st: { asked, launches, records, exported }。集計フォームの書き出しに成功した直後か、3 回目以降の起動で記録が 3 件以上あるとき
+  function shouldAskReview(st) {
+    if (!st || st.asked) return false;
+    if (st.exported) return true;
+    return (Number(st.launches) || 0) >= 3 && (Number(st.records) || 0) >= 3;
+  }
+
   // 機種変更用のバックアップ（利用者が自分で保存するファイル。どこにも送らない）
   function backup(data) {
     return JSON.stringify({ app: "iryouhi-memo", version: 1, exported: new Date().toISOString(), people: data.people || [], settings: data.settings || {}, records: data.records || [] });
@@ -233,6 +241,6 @@
     return { people: Array.isArray(o.people) ? o.people.map(String).slice(0, 20) : [], settings: o.settings || {}, records };
   }
 
-  const api = { KINDS, KIND_NAME, TAX_RATES, THRESHOLD, DEDUCTION_CAP, SELFMED_THRESHOLD, SELFMED_CAP, groupLines, parseReceipt, matchPerson, sameDayVisits, transportFor, summarize, filterRecords, filterSummary, filterLabel, netTotal, deduction, selfMedication, compareDeductions, refundEstimate, formRows, csv, backup, restore };
+  const api = { KINDS, KIND_NAME, TAX_RATES, THRESHOLD, DEDUCTION_CAP, SELFMED_THRESHOLD, SELFMED_CAP, groupLines, parseReceipt, matchPerson, sameDayVisits, transportFor, summarize, filterRecords, filterSummary, filterLabel, shouldAskReview, netTotal, deduction, selfMedication, compareDeductions, refundEstimate, formRows, csv, backup, restore };
   if (typeof module !== "undefined") module.exports = api; else root.IryouhiCore = api;
 })(this);

@@ -1,10 +1,11 @@
 (async () => {
-  const { KINDS, KIND_NAME, TAX_RATES, groupLines, parseReceipt, matchPerson, sameDayVisits, transportFor, summarize, filterRecords, filterSummary, filterLabel, netTotal, deduction, compareDeductions, refundEstimate, formRows, csv, backup, restore } = window.IryouhiCore;
+  const { KINDS, KIND_NAME, TAX_RATES, groupLines, parseReceipt, matchPerson, sameDayVisits, transportFor, summarize, filterRecords, filterSummary, filterLabel, shouldAskReview, netTotal, deduction, compareDeductions, refundEstimate, formRows, csv, backup, restore } = window.IryouhiCore;
   const { writeForm, validate } = window.IryouhiXlsx;
   const KEY = "iryouhi-memo-v1";
   const PRODUCT_ID = "com.company256.iryouhi.form";
   const PRIVACY_URL = "https://256company.com/iryouhi-app-privacy.html";
   const SUPPORT_URL = "https://256company.com/iryouhi-app-support.html";
+  const REVIEW_URL = "https://apps.apple.com/jp/app/id6834021732?action=write-review";
   const native = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
   const P = native ? window.Capacitor.Plugins : {};
   const scanner = () => window.IryouhiMock || P.KeihiScanner;   // IryouhiMock は画面確認用
@@ -17,7 +18,7 @@
   const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 
   // ---- 保存（アプリ専用の領域。この端末の中だけ）
-  const EMPTY = () => ({ records: [], people: [], settings: { income: "", rate: 0.10 } });
+  const EMPTY = () => ({ records: [], people: [], settings: { income: "", rate: 0.10, launches: 0, reviewAsked: false } });
   async function load() {
     try {
       const raw = native ? (await P.Preferences.get({ key: KEY })).value : localStorage.getItem(KEY);
@@ -389,7 +390,7 @@
     if (bad.length) { toast(bad[0]); return; }
     try {
       const bytes = writeForm(rows, await loadTemplate(), window.fflate);
-      if (await shareFile(bytes, `iryouhi_form_${y}.xlsx`, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")) toast(`${rows.length}行を書き出しました`);
+      if (await shareFile(bytes, `iryouhi_form_${y}.xlsx`, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")) { toast(`${rows.length}行を書き出しました`); maybeAskReview(true); }
     } catch (e) { toast(e.message || "書き出せませんでした"); }
   };
   $("exportCsv").onclick = async () => {
@@ -482,12 +483,23 @@
   $("pickBtn").onclick = () => readReceipt("pickPhoto");
 
   // ---- このアプリについて（標準のブラウザで開く）
+  // ---- レビューのお願い（Apple の標準ダイアログ。出すかどうかは Apple が決める。こちらは 1 回だけ頼む）
+  async function maybeAskReview(exported) {
+    if (!native || !P.IryouhiReview) return;
+    if (!shouldAskReview({ asked: data.settings.reviewAsked, launches: data.settings.launches, records: data.records.length, exported })) return;
+    data.settings.reviewAsked = true;
+    await save();
+    setTimeout(() => { try { P.IryouhiReview.request(); } catch (e) { /* 出なくても何もしない */ } }, exported ? 1200 : 2000);
+  }
+  $("reviewBtn").onclick = () => window.open(REVIEW_URL, "_blank");
   $("privacyBtn").onclick = () => window.open(PRIVACY_URL, "_blank");
   $("supportBtn").onclick = () => window.open(SUPPORT_URL, "_blank");
 
   $("date").value = today();
   renderForm();
   checkPurchased();
+  data.settings.launches = (Number(data.settings.launches) || 0) + 1;
+  save().then(() => maybeAskReview(false));
   const first = location.hash.slice(1);
   showTab(TITLES[first] ? first : "home");
 })();

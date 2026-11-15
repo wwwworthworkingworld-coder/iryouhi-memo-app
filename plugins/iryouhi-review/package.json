@@ -1,0 +1,7 @@
+{
+  "name": "iryouhi-review",
+  "version": "1.0.0",
+  "private": true,
+  "description": "App Store のレビュー依頼（Apple 標準の requestReview だけ。文言や回数はこちらで足さない）",
+  "capacitor": { "ios": { "src": "ios" } }
+}

@@ -38,6 +38,6 @@
   const wait = ms => new Promise(r => setTimeout(r, ms));
   // 1画面を60秒ずつ見せる。ios-screens.yml が起動の40秒後から60秒おきに撮る
   await wait(60000); document.querySelector("[data-tab=add]").click(); document.getElementById("scanBtn").click();
-  await wait(60000); document.querySelector("[data-tab=list]").click();
   await wait(60000); document.querySelector("[data-tab=more]").click();
+  await wait(60000); document.querySelector("[data-tab=list]").click();
 })();

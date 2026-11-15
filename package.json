@@ -1,6 +1,6 @@
 {
   "name": "iryouhi-memo-app",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "scripts": {
     "test": "node test/core.test.js",
@@ -12,8 +12,9 @@
     "@capacitor/ios": "8.6.0",
     "@capacitor/preferences": "8.0.1",
     "@capacitor/share": "8.0.3",
-    "keihi-scanner": "file:plugins/keihi-scanner",
-    "iryouhi-store": "file:plugins/iryouhi-store"
+    "iryouhi-review": "file:plugins/iryouhi-review",
+    "iryouhi-store": "file:plugins/iryouhi-store",
+    "keihi-scanner": "file:plugins/keihi-scanner"
   },
   "devDependencies": {
     "@capacitor/cli": "8.6.0"

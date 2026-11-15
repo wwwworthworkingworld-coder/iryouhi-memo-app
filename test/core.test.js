@@ -3,7 +3,7 @@
 const assert = require("assert");
 const fs = require("fs");
 const path = require("path");
-const { KINDS, groupLines, parseReceipt, matchPerson, sameDayVisits, transportFor, summarize, filterRecords, filterSummary, filterLabel, netTotal, deduction, selfMedication, compareDeductions, refundEstimate, formRows, csv, backup, restore } = require("../www/core.js");
+const { KINDS, groupLines, parseReceipt, matchPerson, sameDayVisits, transportFor, summarize, filterRecords, filterSummary, filterLabel, shouldAskReview, netTotal, deduction, selfMedication, compareDeductions, refundEstimate, formRows, csv, backup, restore } = require("../www/core.js");
 const { writeForm, validate, normalizeRow, MAX_ROWS, KIND_COL } = require("../www/xlsx.js");
 const fflate = require("../www/vendor/fflate.min.js");
 
@@ -91,6 +91,15 @@ t("絞り込み：家族別・区分別・病院別の各行と同じ条件で�
   assert.ok(l.every((r, i) => i === 0 || r.date <= l[i - 1].date), "新しい順");
   assert.strictEqual(filterLabel({ place: "ひまわり歯科" }), "ひまわり歯科");
   assert.strictEqual(filterLabel({ kind: "drug" }), "医薬品の購入");
+});
+
+t("レビューのお願い：書き出し成功の直後か、3回目以降の起動で記録3件以上。1回だけ", () => {
+  assert.strictEqual(shouldAskReview({ asked: false, launches: 1, records: 0, exported: true }), true);
+  assert.strictEqual(shouldAskReview({ asked: false, launches: 3, records: 3, exported: false }), true);
+  assert.strictEqual(shouldAskReview({ asked: false, launches: 2, records: 10, exported: false }), false);
+  assert.strictEqual(shouldAskReview({ asked: false, launches: 5, records: 2, exported: false }), false);
+  assert.strictEqual(shouldAskReview({ asked: true, launches: 9, records: 9, exported: true }), false);
+  assert.strictEqual(shouldAskReview(null), false);
 });
 
 // ---- 集計と控除
