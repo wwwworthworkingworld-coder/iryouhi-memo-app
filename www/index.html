@@ -96,6 +96,10 @@
           <div><label for="date">支払った日</label><input id="date" type="date" required></div>
           <div class="amount"><label for="amount">支払った金額（円）</label><input id="amount" type="number" inputmode="numeric" min="1" step="1" placeholder="0" required></div>
         </div>
+        <div id="sameDay" hidden>
+          <label>この日の通院 <small>タップすると、その通院の交通費として記録します</small></label>
+          <div class="chips" id="sameDayChips"></div>
+        </div>
         <div>
           <label>医療を受けた人</label>
           <div class="chips" id="people"></div>

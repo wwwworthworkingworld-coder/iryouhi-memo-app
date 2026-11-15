@@ -112,6 +112,19 @@
     return (people || []).find(p => norm(p) === q) || (people || []).find(p => norm(p) && (q.includes(norm(p)) || norm(p).includes(q))) || "";
   }
 
+  // 同じ日の通院（交通費を足す元になる記録。交通費そのものは除く）。editing の記録は除く
+  function sameDayVisits(records, date, excludeId) {
+    return records.filter(r => r.date === date && r.kind !== "other" && r.id !== excludeId)
+      .slice().sort((a, b) => (a.person + "\u0001" + a.place) < (b.person + "\u0001" + b.place) ? -1 : 1);
+  }
+  // 通院の交通費の記録のひな形。名称は「電車・バス（通院先）」で集計フォームの20文字に収める
+  function transportFor(visit) {
+    const head = "電車・バス（", tail = "）", room = 20 - head.length - tail.length;
+    const name = String(visit.place || "").trim();
+    const place = !name ? "電車・バス" : name.length <= room ? head + name + tail : head + name.slice(0, room - 1) + "…" + tail;
+    return { date: visit.date, person: visit.person, place, kind: "other", amount: 0, refund: 0, otc: false, memo: "通院の交通費" };
+  }
+
   // 年の集計
   const inYear = (r, y) => r.date.slice(0, 4) === String(y);
   function summarize(records, year) {
@@ -203,6 +216,6 @@
     return { people: Array.isArray(o.people) ? o.people.map(String).slice(0, 20) : [], settings: o.settings || {}, records };
   }
 
-  const api = { KINDS, KIND_NAME, TAX_RATES, THRESHOLD, DEDUCTION_CAP, SELFMED_THRESHOLD, SELFMED_CAP, groupLines, parseReceipt, matchPerson, summarize, netTotal, deduction, selfMedication, compareDeductions, refundEstimate, formRows, csv, backup, restore };
+  const api = { KINDS, KIND_NAME, TAX_RATES, THRESHOLD, DEDUCTION_CAP, SELFMED_THRESHOLD, SELFMED_CAP, groupLines, parseReceipt, matchPerson, sameDayVisits, transportFor, summarize, netTotal, deduction, selfMedication, compareDeductions, refundEstimate, formRows, csv, backup, restore };
   if (typeof module !== "undefined") module.exports = api; else root.IryouhiCore = api;
 })(this);

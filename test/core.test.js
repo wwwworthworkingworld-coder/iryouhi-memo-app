@@ -3,7 +3,7 @@
 const assert = require("assert");
 const fs = require("fs");
 const path = require("path");
-const { KINDS, groupLines, parseReceipt, matchPerson, summarize, netTotal, deduction, selfMedication, compareDeductions, refundEstimate, formRows, csv, backup, restore } = require("../www/core.js");
+const { KINDS, groupLines, parseReceipt, matchPerson, sameDayVisits, transportFor, summarize, netTotal, deduction, selfMedication, compareDeductions, refundEstimate, formRows, csv, backup, restore } = require("../www/core.js");
 const { writeForm, validate, normalizeRow, MAX_ROWS, KIND_COL } = require("../www/xlsx.js");
 const fflate = require("../www/vendor/fflate.min.js");
 
@@ -54,6 +54,22 @@ t("受診者：「〇〇 様」「患者氏名」の行から名前を取り、�
   assert.strictEqual(matchPerson("見本太郎", ["見本 花子", "見本 太郎"]), "見本 太郎");
   assert.strictEqual(matchPerson("見本 はな", ["見本 花子"]), "");
   assert.strictEqual(matchPerson("", ["見本 花子"]), "");
+});
+
+t("同じ日の通院：交通費と修正中の記録を除き、人・名称の順", () => {
+  const recs = SAMPLE.concat([rec("2026-02-03", "見本 花子", "こども小児科", "care", 600)]);
+  const v = sameDayVisits(recs, "2026-02-03");
+  assert.deepStrictEqual(v.map(r => r.person + "/" + r.place), ["見本 太郎/さくら薬局", "見本 太郎/みどり内科クリニック", "見本 花子/こども小児科"]);
+  assert.deepStrictEqual(sameDayVisits(SAMPLE, "2026-07-21").map(r => r.place), ["ひまわり歯科"]);  // 電車・バス（other）は出ない
+  assert.strictEqual(sameDayVisits(SAMPLE, "2026-07-21", SAMPLE[3].id).length, 0);
+  assert.strictEqual(sameDayVisits(SAMPLE, "2026-01-01").length, 0);
+});
+t("交通費の行：同じ日・同じ人、名称は「電車・バス（通院先）」で20文字以内、区分その他", () => {
+  const t1 = transportFor(rec("2026-02-03", "見本 太郎", "みどり内科クリニック", "care", 1230));
+  assert.deepStrictEqual([t1.date, t1.person, t1.place, t1.kind, t1.amount, t1.memo], ["2026-02-03", "見本 太郎", "電車・バス（みどり内科クリニック）", "other", 0, "通院の交通費"]);
+  const t2 = transportFor(rec("2026-02-03", "A", "とても長い名前の総合病院リハビリテーションセンター", "care", 1));
+  assert.ok(t2.place.length <= 20 && t2.place.startsWith("電車・バス（") && t2.place.endsWith("…）"));
+  assert.strictEqual(transportFor(rec("2026-02-03", "A", "", "care", 1)).place, "電車・バス");
 });
 
 // ---- 集計と控除

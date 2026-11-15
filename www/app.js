@@ -1,5 +1,5 @@
 (async () => {
-  const { KINDS, KIND_NAME, TAX_RATES, groupLines, parseReceipt, matchPerson, summarize, netTotal, deduction, compareDeductions, refundEstimate, formRows, csv, backup, restore } = window.IryouhiCore;
+  const { KINDS, KIND_NAME, TAX_RATES, groupLines, parseReceipt, matchPerson, sameDayVisits, transportFor, summarize, netTotal, deduction, compareDeductions, refundEstimate, formRows, csv, backup, restore } = window.IryouhiCore;
   const { writeForm, validate } = window.IryouhiXlsx;
   const KEY = "iryouhi-memo-v1";
   const PRODUCT_ID = "com.company256.iryouhi.form";
@@ -163,7 +163,35 @@
     $("editActions").hidden = !state.editing;
     $("transportBtn").hidden = !!state.editing;
     placeOptions();
+    renderSameDay();
   }
+  // 記録画面：入力した日付に通院があれば小さく出す。タップでその通院の交通費として記録する状態にする
+  function renderSameDay() {
+    const date = $("date").value;
+    const visits = state.editing ? [] : sameDayVisits(data.records, date, state.editing);
+    $("sameDay").hidden = !visits.length;
+    if (!visits.length) return;
+    const el = $("sameDayChips"); el.innerHTML = "";
+    visits.forEach(v => {
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "chip visit";
+      b.innerHTML = `${esc(v.place || "（名称なし）")}<small>${esc(v.person)}・${yen(v.amount)} → 交通費</small>`;
+      b.onclick = () => startTransport(v);
+      el.appendChild(b);
+    });
+  }
+  // 通院の記録から、交通費の記録画面を開く（一覧の「＋交通費」と、記録画面の「この日の通院」から）
+  function startTransport(visit) {
+    if (state.editing) reset();
+    const t = transportFor(visit);
+    state = { person: t.person, kind: "other", editing: null, mixed: false, otc: false };
+    $("date").value = t.date; $("amount").value = ""; $("refund").value = ""; $("place").value = t.place; $("memo").value = t.memo;
+    $("ocrBox").hidden = true;
+    showTab("add"); renderForm();
+    toast(`${visit.place || "この通院"}の交通費を入れてください`);
+    setTimeout(() => $("amount").focus(), 50);
+  }
+  $("date").onchange = () => renderSameDay();
   $("otcChip").onclick = () => { state.otc = !state.otc; renderForm(); };
   async function addPersonPrompt() {
     const name = (prompt("医療を受けた人の名前（10文字まで）。申告する本人と家族。") || "").trim().slice(0, 10);
@@ -244,8 +272,10 @@
       const li = document.createElement("li");
       li.innerHTML = `<span class="d">${i.date.slice(5).replace("-", "/")}</span>`
         + `<span class="t">${esc(i.place || "")}<small>${esc(i.person)}・${KIND_NAME[i.kind] || ""}${i.memo ? "・" + esc(i.memo) : ""}</small></span>`
-        + `<span class="a">${yen(i.amount)}${i.refund ? `<small>補填 −${yen(i.refund)}</small>` : ""}</span>`;
+        + `<span class="a">${yen(i.amount)}${i.refund ? `<small>補填 −${yen(i.refund)}</small>` : ""}${i.kind !== "other" ? `<br><button type="button" class="mini" aria-label="${esc(i.place || "")}の交通費を足す">＋交通費</button>` : ""}</span>`;
       li.onclick = () => edit(i.id);
+      const tr = li.querySelector(".mini");
+      if (tr) tr.onclick = e => { e.stopPropagation(); startTransport(i); };
       ul.appendChild(li);
     });
   }
