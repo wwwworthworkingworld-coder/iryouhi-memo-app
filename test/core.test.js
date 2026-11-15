@@ -215,7 +215,12 @@ t("xlsx を書き出し、原本の構造（シート名・保護・入力規則
   assert.ok(sst.includes("<t xml:space=\"preserve\">見本 太郎</t>"));
   const uniq = +sst.match(/uniqueCount="(\d+)"/)[1];
   assert.strictEqual(uniq, 82 + new Set(["見本 太郎", "見本 花子", "みどり内科クリニック", "さくら薬局", "ひまわり歯科", "電車・バス"]).size);
-  assert.ok(sheet.includes("<v>104410</v>") && sheet.includes("<v>20000</v>"), "C3・C4 の計算結果");
+  assert.ok(/<c r="C3" s="15"><f>IF\(0=SUM\(H9:H1003\),"",SUM\(H9:H1003\)\)<\/f><v>104410<\/v><\/c>/.test(sheet), "C3：原本の数式と書式 ID を残し、計算結果は数値（t=\"str\" を外す。保護ビューでも「円」付きで見える）");
+  assert.ok(/<c r="C4" s="17"><f>[^<]*<\/f><v>20000<\/v><\/c>/.test(sheet), "C4 も同じ");
+  const each = new TextDecoder().decode(fflate.unzipSync(writeForm(formRows(SAMPLE, 2026, "each"), tpl, fflate))["xl/worksheets/sheet1.xml"]);
+  assert.ok(/<c r="C3" s="15"><f>[^<]*<\/f><v>104410<\/v><\/c>/.test(each), "1件ずつモードでも C3 は同じ");
+  const zero = new TextDecoder().decode(fflate.unzipSync(writeForm([{ person: "a", place: "b", kinds: ["care"], amount: 1, refund: 0 }], tpl, fflate))["xl/worksheets/sheet1.xml"]);
+  assert.ok(/<c r="C4" s="17" t="str"><f>[^<]*<\/f><v\/><\/c>/.test(zero), "補填 0 のときは原本のまま（空文字の結果）");
   fs.writeFileSync(path.join(require("os").tmpdir(), "iryouhi_form_test.xlsx"), out);  // 手で Excel で開いて確かめる用（プロジェクトの外）
 });
 t("xlsx：読み取り文字に XML で使えない文字や記号が入っても壊れない", () => {

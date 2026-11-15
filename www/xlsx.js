@@ -94,8 +94,9 @@
       });
     });
     // 上部の合計（C3・C4）の計算結果も入れておく（開いたときに再計算されるが、計算しないソフトで見ても合うように）
-    sheet = sheet.replace(/(<c r="C3"[^>]*>)<f>(.*?)<\/f><v\/>/, `$1<f>$2</f><v>${sumH || ""}</v>`)
-                 .replace(/(<c r="C4"[^>]*>)<f>(.*?)<\/f><v\/>/, `$1<f>$2</f><v>${sumI || ""}</v>`);
+    // 原本のセルは t="str"（文字列の結果）。数値を入れるときは t を外さないと、再計算しない表示（Excel の保護ビューなど）で「47258」と素の文字で出て「円」の書式が効かない
+    const cached = (ref, sum) => { sheet = sheet.replace(new RegExp(`(<c r="${ref}"[^>]*>)<f>(.*?)</f><v/>`), (m, open, f) => sum ? `${open.replace(/ t="str"/, "")}<f>${f}</f><v>${sum}</v>` : m); };
+    cached("C3", sumH); cached("C4", sumI);
     files[sheetPath] = enc.encode(sheet);
     files[sstPath] = enc.encode(sst.build(used));
     let wb = dec.decode(files[wbPath]);
