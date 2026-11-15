@@ -184,6 +184,22 @@ t("集計フォームの金額：書き込んだ H・I 列の合計が、アプ�
     assert.strictEqual([...sheet.matchAll(/<c r="B(\d+)" s="6" t="s">/g)].filter(m => +m[1] >= 9).length, rows.length, mode + "：行数");
   }
 });
+t("集計フォームの J 列（支払年月日・任意）：1件ずつは各記録の日付を「YYYY/MM/DD」の文字列で、まとめる行は空欄", () => {
+  const tpl = new Uint8Array(fs.readFileSync(path.join(__dirname, "../www/form/iryouhi_form_v3.1.xlsx")));
+  const dec = new TextDecoder();
+  const styles = dec.decode(fflate.unzipSync(tpl)["xl/styles.xml"]);
+  const xf40 = [...styles.match(/<cellXfs[^>]*>(.*?)<\/cellXfs>/s)[1].matchAll(/<xf [^>]*?(?:\/>|>.*?<\/xf>)/gs)][40][0];
+  assert.ok(/numFmtId="49"/.test(xf40), "原本の J 列は文字列書式（@）なので文字で書く");
+  const jcol = mode => {
+    const sheet = dec.decode(fflate.unzipSync(writeForm(formRows(SAMPLE, 2026, mode), tpl, fflate))["xl/worksheets/sheet1.xml"]);
+    const sst = [...dec.decode(fflate.unzipSync(writeForm(formRows(SAMPLE, 2026, mode), tpl, fflate))["xl/sharedStrings.xml"]).matchAll(/<si>(.*?)<\/si>/gs)].map(m => m[1].replace(/<[^>]+>/g, ""));
+    return [...sheet.matchAll(/<c r="J(\d+)" s="40"(?: t="s"><v>(\d+)<\/v><\/c>|\/>)/g)].filter(m => +m[1] >= 9 && +m[1] < 9 + 6).map(m => m[2] ? sst[+m[2]] : "");
+  };
+  const each = jcol("each");
+  assert.deepStrictEqual(each.slice(0, 5), formRows(SAMPLE, 2026, "each").map(r => r.date.replace(/-/g, "/")));
+  assert.ok(each.slice(0, 5).every(d => /^\d{4}\/\d{2}\/\d{2}$/.test(d)));
+  assert.deepStrictEqual(jcol("group").slice(0, 4), ["", "", "", ""]);
+});
 t("xlsx を書き出し、原本の構造（シート名・保護・入力規則・共有数式）が残る", () => {
   const tpl = new Uint8Array(fs.readFileSync(path.join(__dirname, "../www/form/iryouhi_form_v3.1.xlsx")));
   const out = writeForm(formRows(SAMPLE, 2026), tpl, fflate);
