@@ -450,7 +450,7 @@
     } catch (err) { toast(err.message || "読み込めませんでした"); }
   };
 
-  // ---- レシートの読み取り（iPhoneの標準機能で、この端末の中で読む）
+  // ---- レシートの読み取り（端末の標準機能で、この端末の中で読む）
   function ocrNote(text, preview) {
     $("ocrBox").hidden = false;
     $("ocrNote").textContent = text;
