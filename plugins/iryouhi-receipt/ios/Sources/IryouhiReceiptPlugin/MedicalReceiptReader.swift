@@ -74,10 +74,22 @@ public enum MedicalReceiptReader {
         return g
     }
 
+    // 全角の数字・英字・記号だけ半角にする（カタカナは全角のまま。施設名を半角カナにしない）
     private static func normalize(_ s: String) -> String {
-        var t = s.applyingTransform(.fullwidthToHalfwidth, reverse: false) ?? s
-        t = t.replacingOccurrences(of: "￥", with: "¥").replacingOccurrences(of: "，", with: ",")
-        return t.replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression).trimmingCharacters(in: .whitespaces)
+        var out = ""
+        for u in s.unicodeScalars {
+            switch u.value {
+            case 0xFF10...0xFF19, 0xFF21...0xFF3A, 0xFF41...0xFF5A:
+                out.unicodeScalars.append(Unicode.Scalar(u.value - 0xFEE0)!)
+            case 0xFF0C: out += ","      // ，
+            case 0xFF0E: out += "."      // ．
+            case 0xFF0F: out += "/"      // ／
+            case 0xFF1A: out += ":"      // ：
+            case 0xFFE5: out += "¥"      // ￥
+            default: out.unicodeScalars.append(u)
+            }
+        }
+        return out.replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression).trimmingCharacters(in: .whitespaces)
     }
 
     private static func match(_ s: String, _ pattern: String) -> [String]? {
