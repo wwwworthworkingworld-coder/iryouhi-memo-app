@@ -1,0 +1,11 @@
+{
+  "name": "iryouhi-receipt",
+  "version": "1.0.0",
+  "private": true,
+  "description": "病院・薬局の領収書の撮影と、端末の中での読み取り（金額・日付・受診者・施設名の候補）",
+  "capacitor": {
+    "ios": {
+      "src": "ios"
+    }
+  }
+}

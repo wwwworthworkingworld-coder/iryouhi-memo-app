@@ -8,164 +8,72 @@
 </head>
 <body>
 <div class="app">
-  <header class="bar"><h1 id="title">集計</h1></header>
+  <header class="top">
+    <button class="icon-btn back" type="button" id="backBtn" hidden aria-label="戻る"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
+    <div class="brand" id="brand"><span class="mark" aria-hidden="true"></span><span class="name" id="pageTitle">医療費控除メモ</span></div>
+    <div class="year-nav" id="yearNav">
+      <button type="button" id="prevYear" aria-label="前の年"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
+      <b id="yearLabel"></b>
+      <button type="button" id="nextYear" aria-label="次の年"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
+    </div>
+    <button class="icon-btn" type="button" id="openSettings" aria-label="書き出しと設定"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/></svg></button>
+  </header>
 
   <main id="scroll">
-    <!-- 集計（ホーム） -->
-    <section id="tab-home" class="tab">
-      <div class="year slim">
-        <button type="button" id="prevYear" aria-label="前の年">‹</button>
-        <div><span id="yearLabel"></span></div>
-        <button type="button" id="nextYear" aria-label="次の年">›</button>
-      </div>
+    <!-- 家族の今年 -->
+    <section id="page-home" class="page">
+      <button class="ring-card" type="button" id="ringCard" aria-label="控除の目安を見る">
+        <svg class="ring" viewBox="0 0 120 120" aria-hidden="true"><circle class="track" cx="60" cy="60" r="52"/><circle class="fill" id="ringFill" cx="60" cy="60" r="52"/></svg>
+        <span class="ring-text"><span class="l" id="ringLabel">控除の対象まで あと</span><b id="ringValue">¥100,000</b><small id="ringNote"></small></span>
+        <span class="chev" aria-hidden="true">›</span>
+      </button>
+      <div class="after" id="afterBar" hidden><span id="afterText"></span><button type="button" class="pill" id="afterBtn">＋ 交通費</button><button type="button" class="x" id="afterClose" aria-label="閉じる">×</button></div>
 
-      <div class="card hero" id="emptyHome" hidden>
-        <span class="remain-label">控除の対象まで あと</span>
-        <b class="remain-value" id="emptyRemain">¥100,000</b>
-        <p class="lead">病院や薬局のレシートを撮ると、家族別・医療機関別にたまり、ここに今年の合計と「あといくらで控除の対象になるか」が出ます。</p>
-        <button class="primary" type="button" id="homeScan">レシートを撮る</button>
-        <p class="note">1月になったら、国税庁の「医療費集計フォーム」の形で書き出して、確定申告書等作成コーナーに読み込めます。</p>
-      </div>
+      <h2 class="sec">家族<small id="familyMeta"></small></h2>
+      <div class="family" id="family"></div>
 
-      <div id="homeBody">
-        <div class="card hero remain">
-          <span class="remain-label" id="remainLabel">控除の対象まで あと</span>
-          <b class="remain-value" id="remainValue">¥0</b>
-          <div class="bar-wrap big"><div class="bar-fill" id="remainBar"></div></div>
-          <p class="note" id="remainNote"></p>
-          <button class="primary" type="button" id="homeScan2">レシートを撮る</button>
-        </div>
+      <h2 class="sec">最近の記録<button type="button" class="link" id="seeAll">すべて ›</button></h2>
+      <ul class="recs" id="recent"></ul>
 
-        <div class="card">
-          <div class="total-row"><span>医療費の合計<small id="yearCount"></small></span><b id="yearTotal">¥0</b></div>
-          <p class="note tight" id="yearRefund" hidden></p>
-        </div>
-
-        <div class="card deduct">
-          <h2>戻る税金の目安</h2>
-          <div class="deduct-main">
-            <div><span>控除の対象になる額</span><b id="dedAmount">¥0</b></div>
-            <div><span>戻る税金の目安</span><b id="dedRefund">¥0</b></div>
-          </div>
-          <p class="note" id="dedNote"></p>
-          <div class="rates-row">
-            <label>所得税率<small>課税される所得</small></label>
-            <div class="chips" id="rateChips"></div>
-          </div>
-          <p class="note">目安です。10万円（総所得金額等が200万円未満なら所得の5%）を超えた分が控除の対象で、上限200万円。保険金などで補填される金額は、その医療費からだけ引きます。実際の額は作成コーナーの結果が正です。「書き出し」の設定で所得の目安を入れると計算が変わります。</p>
-        </div>
-
-        <div class="card selfmed" id="selfmedCard" hidden>
-          <h2>セルフメディケーション税制との比較（目安）</h2>
-          <div class="deduct-main">
-            <div><span>通常の医療費控除</span><b id="smRegular">¥0</b></div>
-            <div><span>セルフメディケーション税制</span><b id="smAmount">¥0</b></div>
-          </div>
-          <p class="note" id="smNote"></p>
-          <p class="note">印を付けた市販薬の合計が 12,000円を超えた分（上限 88,000円）。健康診断などの「一定の取組」が必要で、通常の医療費控除とはどちらか一方しか使えません。選ぶときは国税庁の集計フォームは使えず、作成コーナーに直接入力します。</p>
-        </div>
-
-        <div class="card">
-          <h2>家族別</h2>
-          <ul class="list" id="byPerson"></ul>
-        </div>
-        <div class="card">
-          <h2>区分別</h2>
-          <ul class="list" id="byKind"></ul>
-        </div>
-        <div class="card">
-          <h2>病院・薬局別</h2>
-          <ul class="list" id="byPlace"></ul>
-        </div>
-      </div>
+      <details class="fold" id="foldBy">
+        <summary>病院・薬局と区分でみる</summary>
+        <h3>病院・薬局</h3><ul class="recs sum" id="byPlace"></ul>
+        <h3>区分</h3><ul class="recs sum" id="byKind"></ul>
+      </details>
+      <p class="hint" id="homeHint">1月になったら、右上の歯車から国税庁「医療費集計フォーム」の形で書き出して、確定申告書等作成コーナーに読み込めます。</p>
     </section>
 
-    <!-- 記録 -->
-    <section id="tab-add" class="tab" hidden>
-      <div class="scan">
-        <button class="primary" type="button" id="scanBtn">レシートを撮る</button>
-        <button class="secondary" type="button" id="pickBtn">写真から読む</button>
-      </div>
-      <div class="ocr" id="ocrBox" hidden>
-        <img id="ocrImg" alt="読み取ったレシート">
-        <p id="ocrNote"></p>
-      </div>
-
-      <form class="card form" id="form" autocomplete="off">
-        <div class="row2">
-          <div><label for="date">支払った日</label><input id="date" type="date" required></div>
-          <div class="amount"><label for="amount">支払った金額（円）</label><input id="amount" type="number" inputmode="numeric" min="1" step="1" placeholder="0" required></div>
-        </div>
-        <div id="sameDay" hidden>
-          <label>この日の通院 <small>タップすると、その通院の交通費として記録します</small></label>
-          <div class="chips" id="sameDayChips"></div>
-        </div>
-        <div>
-          <label>医療を受けた人</label>
-          <div class="chips" id="people"></div>
-        </div>
-        <div>
-          <label for="place">病院・薬局などの名称 <small>20文字まで</small></label>
-          <input id="place" type="text" maxlength="20" list="placeList" placeholder="例：みどり内科クリニック">
-          <datalist id="placeList"></datalist>
-        </div>
-        <div>
-          <label>区分</label>
-          <div class="chips" id="kinds"></div>
-          <p class="note tight" id="kindNote"></p>
-        </div>
-        <div id="otcRow" hidden>
-          <label>セルフメディケーション税制 <small>市販薬のうち対象の印（★など）がある分</small></label>
-          <div class="chips"><button type="button" class="chip" id="otcChip" aria-pressed="false">この医薬品は対象</button></div>
-          <p class="note tight">印を付けると、ホームで通常の医療費控除との目安を比べられます。どちらを選ぶかは本人が決めます。</p>
-        </div>
-        <div>
-          <label for="refund">保険金などで補填される金額 <small>高額療養費・出産育児一時金・生命保険など。なければ空欄</small></label>
-          <input id="refund" type="number" inputmode="numeric" min="0" step="1" placeholder="0">
-        </div>
-        <div><label for="memo">メモ <small>任意</small></label><input id="memo" type="text" maxlength="60" placeholder="例：定期健診、薬の名前"></div>
-        <button class="primary" type="submit" id="saveBtn">記録する</button>
-        <button class="secondary" type="button" id="transportBtn">同じ日の通院の交通費も記録する</button>
-        <div class="edit-actions" id="editActions" hidden>
-          <button class="secondary" type="button" id="cancelBtn">やめる</button>
-          <button class="secondary danger" type="button" id="deleteBtn">削除する</button>
-        </div>
-      </form>
+    <!-- その人のページ -->
+    <section id="page-person" class="page" hidden>
+      <div class="person-head"><b id="pTotal">¥0</b><small id="pMeta"></small></div>
+      <div class="chips wrap" id="pPlaces"></div>
+      <ul class="recs grouped" id="pList"></ul>
+      <button class="ghost" type="button" id="pRename">名前を変える・外す</button>
     </section>
 
-    <!-- 一覧 -->
-    <section id="tab-list" class="tab" hidden>
-      <div class="month">
-        <button type="button" id="prevMonth" aria-label="前の月">‹</button>
-        <div><span id="monthLabel"></span><b id="monthTotal">¥0</b></div>
-        <button type="button" id="nextMonth" aria-label="次の月">›</button>
-      </div>
-      <div class="filter-bar" id="filterBar" hidden>
-        <span id="filterDesc"></span>
-        <button type="button" class="chip" id="clearFilter">絞り込みを解除</button>
-      </div>
-      <div class="chips filter" id="personFilter"></div>
-      <ul class="card list" id="list"></ul>
-      <button class="secondary" type="button" id="filterTransport" hidden>この病院の交通費を足す</button>
-      <p class="note" id="filterNote" hidden>記録を押すと修正・削除できます。</p>
+    <!-- すべての記録 -->
+    <section id="page-all" class="page" hidden>
+      <div class="month-nav"><button type="button" id="prevMonth" aria-label="前の月">‹</button><span id="monthLabel"></span><button type="button" id="nextMonth" aria-label="次の月">›</button></div>
+      <p class="month-total" id="monthTotal"></p>
+      <ul class="recs grouped" id="allList"></ul>
     </section>
 
-    <!-- 書き出し -->
-    <section id="tab-more" class="tab" hidden>
-      <div class="card">
-        <h2>国税庁の集計フォームに書き出す</h2>
-        <p class="note">国税庁「医療費集計フォーム」（Excel）の形で書き出します。確定申告書等作成コーナーの医療費控除の画面で読み込むと、明細を打ち直さずに済みます。</p>
+    <!-- 書き出しと設定 -->
+    <section id="page-settings" class="page" hidden>
+      <div class="block">
+        <h2>国税庁の集計フォームへ</h2>
+        <p class="txt">1年分の記録を、国税庁「医療費集計フォーム」（Excel）の形で書き出します。確定申告書等作成コーナーで読み込むと、明細を打ち直さずに済みます。</p>
         <div class="row2">
           <div><label for="formYear">年分</label><select id="formYear"></select></div>
           <div><label for="formMode">まとめ方</label><select id="formMode"><option value="group">家族×病院ごとにまとめる</option><option value="each">1件ずつ（日付つき）</option></select></div>
         </div>
-        <p class="sum" id="formPreview"></p>
+        <p class="txt" id="formPreview"></p>
         <div id="buyBox" hidden>
-          <p class="note"><b>集計フォームの書き出しは、1回の購入でずっと使えます。</b>記録・読み取り・集計は無料のままです。</p>
-          <button class="primary" type="button" id="buyBtn">購入して書き出せるようにする</button>
-          <button class="secondary" type="button" id="restoreBtn">購入を復元する</button>
+          <p class="txt"><b>書き出しは 1 回の購入でずっと使えます。</b>記録・読み取り・集計はこのままずっと無料です。</p>
+          <button class="btn main" type="button" id="buyBtn">購入して書き出せるようにする</button>
+          <button class="btn sub" type="button" id="restoreBtn">以前の購入を復元</button>
         </div>
-        <button class="primary" type="button" id="exportForm">集計フォームを書き出す</button>
+        <button class="btn main" type="button" id="exportForm">集計フォームを書き出す</button>
         <details class="howto">
           <summary>作成コーナーでの読み込み方</summary>
           <ol>
@@ -174,53 +82,118 @@
             <li>「医療費集計フォームを読み込んで入力する」を選び、保存したファイルを選びます。</li>
             <li>読み込まれた明細を確かめます。マイナポータル連携で取り込んだ分と重ならないようにしてください。</li>
           </ol>
-          <p class="note">セルフメディケーション税制を使う場合、このフォームは使えません（国税庁の案内）。領収書は5年間保管してください。</p>
+          <p class="txt">セルフメディケーション税制を使う場合、このフォームは使えません（国税庁の案内）。領収書は5年間保管してください。</p>
         </details>
       </div>
 
-      <div class="card">
-        <h2>CSVに書き出す</h2>
-        <p class="note">Excel などで開ける一覧です。年分を選んで書き出します。</p>
-        <button class="secondary" type="button" id="exportCsv">CSVを書き出す</button>
+      <div class="block">
+        <h2>CSV</h2>
+        <p class="txt">Excel などで開ける一覧。上で選んだ年分を書き出します。</p>
+        <button class="btn sub" type="button" id="exportCsv">CSV を書き出す</button>
       </div>
 
-      <div class="card">
-        <h2>設定</h2>
-        <div class="setting">
-          <label>家族の名前 <small>医療を受けた人として選びます</small></label>
-          <ul class="list" id="peopleList"></ul>
-          <div class="row-add"><input id="newPerson" type="text" maxlength="10" placeholder="名前（10文字まで）"><button class="secondary small" type="button" id="addPerson">追加</button></div>
-        </div>
-        <div class="setting">
-          <label for="income">総所得金額等の目安（円） <small>任意。200万円未満なら控除の計算が変わります</small></label>
-          <input id="income" type="number" inputmode="numeric" min="0" step="1" placeholder="空欄なら10万円で計算">
-        </div>
+      <div class="block">
+        <h2>家族の名前</h2>
+        <p class="txt">医療を受けた人として選びます。申告する本人と、生計を一にする家族。</p>
+        <ul class="recs" id="peopleList"></ul>
+        <div class="row-add"><input id="newPerson" type="text" maxlength="10" placeholder="名前（10文字まで）"><button class="btn sub small" type="button" id="addPerson">追加</button></div>
       </div>
 
-      <div class="card">
-        <h2>バックアップ</h2>
-        <p class="note">アプリを削除すると記録も消えます。年に1回「バックアップを書き出す」で保存しておくと安心です。機種変更のときは、そのファイルを新しいスマホで読み込みます。ファイルは自分で保存し、どこにも送られません。</p>
-        <button class="secondary" type="button" id="backupBtn">バックアップを書き出す</button>
-        <label class="secondary file">バックアップを読み込む<input id="restoreFile" type="file" accept=".json,application/json" hidden></label>
+      <div class="block">
+        <h2>所得の目安</h2>
+        <label for="income">総所得金額等（円） <small>任意。200万円未満なら、控除の線が「所得の5%」になります</small></label>
+        <input id="income" type="number" inputmode="numeric" min="0" step="1" placeholder="空欄なら10万円で計算">
       </div>
 
-      <div class="card links">
-        <h2>このアプリについて</h2>
-        <p class="note">記録もレシートの文字の読み取りも、この端末の中だけで行います。どこにも送信せず、クラウドにも保存しません。写真は保存しません。</p>
-        <button class="row-link" type="button" id="privacyBtn">プライバシーポリシー<span>›</span></button>
-        <button class="row-link" type="button" id="supportBtn">お問い合わせ<span>›</span></button>
-        <button class="row-link" type="button" id="reviewBtn">App Store でレビューを書く<span>›</span></button>
-        <p class="note">提供：株式会社256　バージョン <span id="version">1.0.1</span></p>
+      <div class="block">
+        <h2>引き継ぎ</h2>
+        <p class="txt">記録はこの端末のアプリの中にあり、アプリを消すと一緒に消えます。年に1回ファイルに書き出しておき、機種を変えたら新しい端末で読み込みます。ファイルは自分の手元に保存され、外には出ません。</p>
+        <button class="btn sub" type="button" id="backupBtn">ファイルに書き出す</button>
+        <label class="btn sub file">ファイルから読み込む<input id="restoreFile" type="file" accept=".json,application/json" hidden></label>
+      </div>
+
+      <div class="block info">
+        <h2>情報</h2>
+        <p class="txt">領収書の文字の読み取りも集計も、この端末の中で完結します。通信も、クラウドへの保存も、広告もありません。撮った写真は読み取りに使ったあと捨てます。表示する控除額・税額は目安で、実際の額は確定申告書等作成コーナーの結果が正です。</p>
+        <button class="row-link" type="button" id="privacyBtn">プライバシーポリシー</button>
+        <button class="row-link" type="button" id="supportBtn">使い方・お問い合わせ</button>
+        <button class="row-link" type="button" id="reviewBtn">App Store で評価する</button>
+        <p class="txt small">株式会社256　バージョン <span id="version">1.0.0</span></p>
       </div>
     </section>
   </main>
 
-  <nav class="tabs" aria-label="画面の切り替え">
-    <button type="button" data-tab="home" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>集計</button>
-    <button type="button" data-tab="add"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2h12a1 1 0 0 1 1 1v18l-2.5-1.5L14 21l-2-1.5L10 21l-2.5-1.5L5 21V3a1 1 0 0 1 1-1z"/><path d="M12 7v6M9 10h6"/></svg>記録</button>
-    <button type="button" data-tab="list"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/></svg>一覧</button>
-    <button type="button" data-tab="more"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3M7 8l5-5 5 5"/><path d="M4 14v6a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-6"/></svg>書き出し</button>
-  </nav>
+  <button class="fab" type="button" id="fab"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>記録</button>
+
+  <!-- 記録シート -->
+  <div class="sheet-bg" id="sheetBg" hidden></div>
+  <section class="sheet" id="recSheet" hidden role="dialog" aria-labelledby="recTitle">
+    <div class="grip" aria-hidden="true"></div>
+    <div class="sheet-head"><h2 id="recTitle">記録</h2><button type="button" class="icon-btn" id="recClose" aria-label="閉じる"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <div class="sheet-body">
+      <div class="read-row" id="readRow">
+        <button class="btn main" type="button" id="readBtn"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3M7 12h10"/></svg>領収書から読む</button>
+        <button class="link" type="button" id="pickBtn">写真から</button>
+      </div>
+      <div class="ocr" id="ocrBox" hidden><img id="ocrImg" alt="読み取った領収書"><p id="ocrNote"></p></div>
+
+      <form id="form" autocomplete="off">
+        <div class="step"><span class="n">1</span><label>誰の</label><div class="chips" id="people"></div></div>
+        <div class="step"><span class="n">2</span><label for="place">どこの <small>病院・薬局などの名称、20文字まで</small></label>
+          <div class="chips recent-places" id="placeChips"></div>
+          <input id="place" type="text" maxlength="20" list="placeList" placeholder="例：みどり内科クリニック"><datalist id="placeList"></datalist>
+        </div>
+        <div class="step"><span class="n">3</span><label>いくら</label>
+          <div class="row2">
+            <div class="amount"><input id="amount" type="number" inputmode="numeric" min="1" step="1" placeholder="0" required aria-label="支払った金額（円）"><span class="unit">円</span></div>
+            <div><input id="date" type="date" required aria-label="支払った日"></div>
+          </div>
+          <div id="sameDay" hidden><p class="txt small">この日の通院に交通費として付ける：</p><div class="chips" id="sameDayChips"></div></div>
+        </div>
+        <div class="step opt">
+          <button type="button" class="kind-btn" id="kindBtn" aria-expanded="false">区分：<b id="kindLabel">診療・治療</b><span>変える</span></button>
+          <div id="kindBox" hidden>
+            <div class="chips" id="kinds"></div>
+            <p class="txt small" id="kindNote"></p>
+            <div id="otcRow" hidden>
+              <div class="chips"><button type="button" class="chip" id="otcChip" aria-pressed="false">セルフメディケーション税制の対象</button></div>
+              <p class="txt small">市販薬のうち対象の印（★など）がある分。印を付けると、通常の医療費控除との目安を比べられます。</p>
+            </div>
+            <label for="refund">保険金などで補填される金額 <small>高額療養費・出産育児一時金・生命保険など</small></label>
+            <input id="refund" type="number" inputmode="numeric" min="0" step="1" placeholder="なければ空欄">
+            <label for="memo">メモ <small>任意</small></label>
+            <input id="memo" type="text" maxlength="60" placeholder="例：定期健診、薬の名前">
+          </div>
+        </div>
+        <button class="btn main big" type="submit" id="saveBtn">この内容で記録</button>
+        <button class="btn danger" type="button" id="deleteBtn" hidden>この記録を削除</button>
+      </form>
+    </div>
+  </section>
+
+  <!-- 控除の目安シート -->
+  <section class="sheet" id="dedSheet" hidden role="dialog" aria-labelledby="dedTitle">
+    <div class="grip" aria-hidden="true"></div>
+    <div class="sheet-head"><h2 id="dedTitle">控除の目安</h2><button type="button" class="icon-btn" id="dedClose" aria-label="閉じる"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <div class="sheet-body">
+      <div class="kv"><span>医療費の合計<small id="dedCount"></small></span><b id="dedTotal">¥0</b></div>
+      <div class="kv" id="dedRefundRow" hidden><span>保険金などで補填される金額</span><b id="dedRefundSum">−¥0</b></div>
+      <div class="kv"><span>控除の線<small id="dedThresholdNote"></small></span><b id="dedThreshold">¥100,000</b></div>
+      <div class="kv big"><span>医療費控除の対象になる額（目安）</span><b id="dedAmount">¥0</b></div>
+      <div class="kv big"><span>戻る税金の目安</span><b id="dedRefund">—</b></div>
+      <p class="txt" id="dedNote"></p>
+      <label>所得税率 <small>課税される所得の目安で選びます</small></label>
+      <div class="chips" id="rateChips"></div>
+      <div id="selfmedBox" hidden>
+        <h3>セルフメディケーション税制と比べる（目安）</h3>
+        <div class="kv"><span>通常の医療費控除</span><b id="smRegular">¥0</b></div>
+        <div class="kv"><span>セルフメディケーション税制</span><b id="smAmount">¥0</b></div>
+        <p class="txt" id="smNote"></p>
+        <p class="txt small">印を付けた市販薬の合計が 12,000円を超えた分（上限 88,000円）。健康診断などの「一定の取組」が必要で、通常の医療費控除とはどちらか一方しか使えません。選ぶときは国税庁の集計フォームは使えず、作成コーナーに直接入力します。</p>
+      </div>
+      <p class="txt small">目安です。10万円（総所得金額等が200万円未満なら所得の5%）を超えた分が控除の対象で、上限200万円。保険金などで補填される金額は、その医療費からだけ引きます。実際の額は所得や他の控除で変わり、確定申告書等作成コーナーの結果が正です。</p>
+    </div>
+  </section>
 </div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <script src="vendor/fflate.min.js"></script>

@@ -15,8 +15,8 @@ let package = Package(
         .package(name: "CapacitorFilesystem", path: "../../../node_modules/@capacitor/filesystem"),
         .package(name: "CapacitorPreferences", path: "../../../node_modules/@capacitor/preferences"),
         .package(name: "CapacitorShare", path: "../../../node_modules/@capacitor/share"),
-        .package(name: "KeihiScanner", path: "../../../plugins/keihi-scanner"),
-        .package(name: "IryouhiStore", path: "../../../plugins/iryouhi-store")
+        .package(name: "IryouhiForm", path: "../../../plugins/iryouhi-form"),
+        .package(name: "IryouhiReceipt", path: "../../../plugins/iryouhi-receipt")
     ],
     targets: [
         .target(
@@ -27,8 +27,8 @@ let package = Package(
                 .product(name: "CapacitorFilesystem", package: "CapacitorFilesystem"),
                 .product(name: "CapacitorPreferences", package: "CapacitorPreferences"),
                 .product(name: "CapacitorShare", package: "CapacitorShare"),
-                .product(name: "KeihiScanner", package: "KeihiScanner"),
-                .product(name: "IryouhiStore", package: "IryouhiStore")
+                .product(name: "IryouhiForm", package: "IryouhiForm"),
+                .product(name: "IryouhiReceipt", package: "IryouhiReceipt")
             ]
         )
     ]

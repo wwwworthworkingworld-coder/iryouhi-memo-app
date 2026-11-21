@@ -33,11 +33,12 @@
     ],
     preview: window.__receiptPreview || "",
   };
-  window.IryouhiMock = { scanReceipt: async () => receipt, pickPhoto: async () => receipt };
-  window.IryouhiStoreMock = { isPurchased: async () => ({ purchased: true }), getProduct: async () => ({ price: "¥600" }), purchase: async () => ({ state: "purchased" }), restore: async () => ({ purchased: true }) };
+  window.IryouhiMock = { captureReceipt: async () => receipt, readFromLibrary: async () => receipt };
+  window.IryouhiFormMock = { status: async () => ({ owned: true }), offer: async () => ({ found: true, price: "¥600" }), unlock: async () => ({ state: "purchased" }), recover: async () => ({ owned: true }), askReview: async () => ({ requested: false }) };
   const wait = ms => new Promise(r => setTimeout(r, ms));
   // 1画面を60秒ずつ見せる。ios-screens.yml が起動の40秒後から60秒おきに撮る
-  await wait(60000); document.querySelector("[data-tab=add]").click(); document.getElementById("scanBtn").click();
-  await wait(60000); document.querySelector("[data-tab=more]").click();
-  await wait(60000); document.querySelector("[data-tab=list]").click();
+  // 1 家族の今年 → 2 記録シート（読み取り後） → 3 書き出しと設定 → 4 その人のページ
+  await wait(60000); document.getElementById("fab").click(); document.getElementById("readBtn").click();
+  await wait(60000); document.getElementById("recClose").click(); document.getElementById("openSettings").click();
+  await wait(60000); document.getElementById("backBtn").click(); document.querySelector("#family .fam").click();
 })();

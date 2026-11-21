@@ -49,7 +49,7 @@ jobs:
           mkdir screens
           SECONDS=0
           t=40
-          for name in 1_home 2_scan 3_more 4_list; do
+          for name in 1_family 2_record 3_form 4_person; do
             sleep $((t - SECONDS))
             xcrun simctl io "$UDID" screenshot "screens/$name.png"
             t=$((t + 60))

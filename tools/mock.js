@@ -35,22 +35,24 @@
     ],
     preview: window.__receiptPreview || "",
   };
-  window.IryouhiMock = { scanReceipt: async () => receipt, pickPhoto: async () => receipt };
+  window.IryouhiMock = { captureReceipt: async () => receipt, readFromLibrary: async () => receipt };
   // 購入の試し：?buy=0 で未購入の画面
   let bought = q.get("buy") !== "0";
-  window.IryouhiStoreMock = {
-    isPurchased: async () => ({ purchased: bought }),
-    getProduct: async () => ({ productId: "mock", price: "¥600", name: "集計フォームの書き出し" }),
-    purchase: async () => { bought = true; return { state: "purchased" }; },
-    restore: async () => ({ purchased: bought }),
+  window.IryouhiFormMock = {
+    status: async () => ({ owned: bought }),
+    offer: async () => ({ found: true, price: "¥600", name: "集計フォームの書き出し" }),
+    unlock: async () => { bought = true; return { state: "purchased" }; },
+    recover: async () => ({ owned: bought }),
+    askReview: async () => ({ requested: false }),
   };
   // 撮影用：iPhoneの上下の余白をまねて、読み取り後の画面を出す
   if (q.get("shot") !== null) {
     document.addEventListener("DOMContentLoaded", () => {
       const s = document.createElement("style");
-      s.textContent = ".bar{padding-top:62px!important}.tabs{padding-bottom:30px!important}";
+      s.textContent = ".top{padding-top:62px!important}.fab{bottom:48px!important}";
       document.head.appendChild(s);
     });
-    if (q.get("scan") !== null) setTimeout(() => document.getElementById("scanBtn").click(), 400);
+    // ?scan=1：記録シートを開いて読み取り結果を出す
+    if (q.get("scan") !== null) setTimeout(() => { document.getElementById("fab").click(); document.getElementById("readBtn").click(); }, 400);
   }
 })();

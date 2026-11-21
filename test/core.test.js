@@ -267,6 +267,13 @@ if (file) {
     const miss = Object.keys(w).filter(k => k === "place" ? r.place.replace(/\s/g, "") !== w.place.replace(/\s/g, "") : r[k] !== w[k]);
     console.log(`${miss.length ? "NG " : "ok "} ${name}: ${JSON.stringify(r)}`);
     if (miss.length) { bad += /_rough$/.test(name) || miss.join() === "place" ? 0 : 1; console.log(text.replace(/^/gm, "    ")); }
+    // 端末側（Swift の MedicalReceiptReader.guess）の候補も、きれいな画像では金額と日付が合うこと
+    const g = res[name + "__guess"];
+    if (g) {
+      const gm = ["amount", "date"].filter(k => w[k] !== undefined && g[k] !== w[k]);
+      console.log(`${gm.length ? "NG " : "ok "} ${name} (swift guess): ${JSON.stringify(g)}`);
+      if (gm.length && !/_rough$/.test(name)) bad++;
+    }
   }
   assert.strictEqual(bad, 0, "きれいな画像で日付・金額・区分を読み取れないものがある");
 }

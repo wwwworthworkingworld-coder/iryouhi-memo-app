@@ -1,0 +1,11 @@
+{
+  "name": "iryouhi-form",
+  "version": "1.0.0",
+  "private": true,
+  "description": "集計フォームの書き出しの買い切り（StoreKit 2）と、レビュー依頼",
+  "capacitor": {
+    "ios": {
+      "src": "ios"
+    }
+  }
+}

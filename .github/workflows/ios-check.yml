@@ -19,7 +19,7 @@ jobs:
         run: node test/core.test.js
       - name: アプリと同じ読み取り処理を架空のレシートにかける
         run: |
-          swiftc -parse-as-library -O plugins/keihi-scanner/ios/Sources/KeihiScannerPlugin/KeihiOCR.swift tools/ocr_cli.swift -o ocr_cli
+          swiftc -parse-as-library -O plugins/iryouhi-receipt/ios/Sources/IryouhiReceiptPlugin/MedicalReceiptReader.swift tools/ocr_cli.swift -o ocr_cli
           ./ocr_cli test/fixtures/*.png > ocr_result.json
           node test/core.test.js ocr_result.json
       - run: npx cap sync ios
@@ -36,7 +36,8 @@ jobs:
           xcrun simctl bootstatus "$UDID" -b
           APP=$(find build/Build/Products -name 'App.app' -maxdepth 3 | head -1)
           xcrun simctl install "$UDID" "$APP"
-          grep -c KeihiScannerPlugin "$APP/capacitor.config.json"
+          grep -c IryouhiReceiptPlugin "$APP/capacitor.config.json"
+          ! grep -rq "Keihi" "$APP/capacitor.config.json"
           (xcrun simctl launch --console-pty "$UDID" com.company256.iryouhi > app_console.txt 2>&1 &)
           sleep 25
           xcrun simctl io "$UDID" screenshot screen_add.png
